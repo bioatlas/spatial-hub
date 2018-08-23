@@ -2,9 +2,6 @@ language: groovy
 jdk:
 - openjdk8
 sudo: false
-branches:
-  only:
-  - master
 addons:
   apt:
     packages:
@@ -28,4 +25,5 @@ deploy:
   overwrite: true
   on:
     repo: bioatlas/spatial-hub
+    all-branches: true
     tags: true
