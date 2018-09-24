@@ -44,6 +44,7 @@
                 };
                 var selected = {layer: null};
                 var uid = 1;
+                var pidList = [];
 
                 var MapService = {
                     mappedLayers: layers,
@@ -54,7 +55,7 @@
                     areaLayers: function () {
                         var list = [];
                         for (var i = 0; i < layers.length; i++) {
-                            if (layers[i].pid !== undefined) {
+                            if (layers[i].layertype === 'area') {
                                 list.push(layers[i])
                             }
                         }
@@ -210,6 +211,7 @@
                             if (response && response.data && response.data.length > 0) {
                                 var data = response.data;
                                 for (var i in data) {
+
                                     var item = data[i];
 
                                     //map with geom_idx
@@ -238,20 +240,49 @@
                                         name = item.scientific + " (" + name + ")"
                                     }
 
-                                    MapService.add({
-                                        query: query,
-                                        geom_idx: item.geom_idx,
-                                        layertype: "area",
-                                        name: name,
-                                        layerParams: parameters,
-                                        metadataUrl: metadataUrl
-                                    })
+                                    if (data[i].pid) {
+                                        data[i].metadataUrl = metadataUrl;
+                                        data[i].name = name;
+                                        data[i].geom_idx = item.geom_idx;
+                                        data[i].query = query;
+
+                                        pidList.push(data[i]);
+                                    } else {
+                                        MapService.add({
+                                            query: query,
+                                            geom_idx: item.geom_idx,
+                                            layertype: "area",
+                                            name: name,
+                                            layerParams: parameters,
+                                            metadataUrl: metadataUrl
+                                        })
+                                    }
                                 }
+
+                                MapService.mapFromPidList()
                             }
                             return $q.when()
                         }, function (data) {
                             return $q.when()
                         })
+                    },
+
+                    mapFromPidList: function () {
+                        if (pidList.length > 0) {
+                            var next = pidList.pop();
+                            LayersService.getObject(next.pid).then(function (data) {
+                                data.data.layertype = 'area';
+                                if (next.query) data.data.query = next.query;
+                                if (next.metadataUrl) data.data.metadataUrl = next.metadataUrl;
+                                if (next.name) data.data.name = next.name;
+                                if (next.name) data.data.displayname = next.name;
+                                if (next.geom_idx) data.data.geom_idx = next.geom_idx;
+
+                                MapService.add(data.data);
+
+                                MapService.mapFromPidList();
+                            })
+                        }
                     },
 
                     addHighlight: function (id) {
@@ -383,7 +414,7 @@
                                 name: uid + ': ' + id.name,
                                 type: 'wms',
                                 visible: true,
-                                url: id.bs + '/webportal/wms/reflect?',
+                                url: id.bs + '/webportal/wms/reflect?OUTLINE=false&',
                                 layertype: 'species',
                                 opacity: id.opacity / 100.0,
                                 layerParams: {
@@ -392,7 +423,8 @@
                                     format: 'image/png',
                                     q: id.qid,
                                     ENV: env,
-                                    transparent: true
+                                    transparent: true,
+                                    continuousWorld: true
                                 }
                             };
 
@@ -417,38 +449,58 @@
                             }));
                         } else {
                             if (id.layertype === 'area') {
-                                LoggerService.log('AddToMap', 'Area', {pid: id.pid, geom_idx: id.geom_idx});
-
-                                //backup sld_body
-                                var sld_body = undefined;
-                                if (id && id.leaflet && id.leaflet.layerParams && id.leaflet.layerParams.sld_body) {
-                                    sld_body = id.leaflet.layerParams.sld_body
-                                }
                                 var layerParams;
-                                if (id.layerParams) {
-                                    layerParams = id.layerParams;
-                                    if (id.transparent !== undefined) layerParams.transparent = true;
-                                    if (id.opacity !== undefined) layerParams.opacity = id.opacity / 100.0;
-                                    if (id.format !== undefined) layerParams.format = 'image/png';
+                                var sld_body = undefined;
+
+                                if (id.type === 'envelope') {
+                                    newLayer = {
+                                        name: uid + ': ' + id.name,
+                                        type: 'wms',
+                                        visible: true,
+                                        opacity: id.opacity / 100.0,
+                                        url: $SH.geoserverUrl + '/wms',
+                                        layertype: 'area',
+                                        layerParams: {
+                                            opacity: id.opacity / 100.0,
+                                            layers: 'ALA:' + id.id,
+                                            format: 'image/png',
+                                            transparent: true
+                                        }
+                                    };
                                 } else {
-                                    layerParams = {
-                                        opacity: id.area_km == 0 ? 0 : id.opacity / 100.0,
-                                        layers: id.area_km == 0 ? 'ALA:Points' : 'ALA:Objects',
-                                        format: 'image/png',
-                                        transparent: true,
-                                        viewparams: 's:' + id.pid
+                                    LoggerService.log('AddToMap', 'Area', {pid: id.pid, geom_idx: id.geom_idx});
+
+                                    //backup sld_body
+                                    if (id && id.leaflet && id.leaflet.layerParams && id.leaflet.layerParams.sld_body) {
+                                        sld_body = id.leaflet.layerParams.sld_body
                                     }
+
+                                    if (id.layerParams) {
+                                        layerParams = id.layerParams;
+                                        if (id.transparent !== undefined) layerParams.transparent = true;
+                                        if (id.opacity !== undefined) layerParams.opacity = id.opacity / 100.0;
+                                        if (id.format !== undefined) layerParams.format = 'image/png';
+                                    } else {
+                                        layerParams = {
+                                            opacity: id.area_km == 0 ? 0 : id.opacity / 100.0,
+                                            layers: id.area_km == 0 ? 'ALA:Points' : 'ALA:Objects',
+                                            format: 'image/png',
+                                            transparent: true,
+                                            viewparams: 's:' + id.pid
+                                        }
+                                    }
+
+                                    //user or layer object
+                                    newLayer = {
+                                        name: uid + ': ' + id.name,
+                                        type: 'wms',
+                                        visible: true,
+                                        opacity: id.opacity / 100.0,
+                                        url: $SH.geoserverUrl + '/wms',
+                                        layertype: 'area',
+                                        layerParams: layerParams
+                                    };
                                 }
-                                //user or layer object
-                                newLayer = {
-                                    name: uid + ': ' + id.name,
-                                    type: 'wms',
-                                    visible: true,
-                                    opacity: id.opacity / 100.0,
-                                    url: $SH.geoserverUrl + '/wms',
-                                    layertype: 'area',
-                                    layerParams: layerParams
-                                };
 
                                 //restore sld_body
                                 if (sld_body) {
@@ -586,7 +638,15 @@
                     },
                     objectSld: function (item) {
                         var sldBody = '';
-                        if (item.area_km === 0) {
+                        if (item.type === 'envelope') {
+                            sldBody = "<?xml version=\"1.0\" encoding=\"UTF-8\"?><StyledLayerDescriptor xmlns=\"http://www.opengis.net/sld\">"
+                                + "<NamedLayer><Name>ALA:" + item.id + "</Name>"
+                                + "<UserStyle><FeatureTypeStyle><Rule><RasterSymbolizer><Geometry></Geometry>"
+                                + "<ColorMap>"
+                                + "<ColorMapEntry color=\"#ffffff\" opacity=\"0\" quantity=\"0\"/>"
+                                + "<ColorMapEntry color=\"#.colour\" opacity=\"1\" quantity=\"1\" />"
+                                + "</ColorMap></RasterSymbolizer></Rule></FeatureTypeStyle></UserStyle></NamedLayer></StyledLayerDescriptor>";
+                        } else if (item.area_km === 0) {
                             sldBody = '<?xml version="1.0" encoding="UTF-8"?><StyledLayerDescriptor version="1.0.0" xmlns="http://www.opengis.net/sld" xmlns:xlink="http://www.w3.org/1999/xlink"><NamedLayer><Name>ALA:Points</Name><UserStyle><FeatureTypeStyle>\n' +
                                 '     <Rule>\n' +
                                 '       <PointSymbolizer>\n' +
@@ -657,7 +717,7 @@
                     },
                     getAllSpeciesQuery: function (layer) {
                         var query = {q: [], name: '', bs: '', ws: ''};
-                        query.name = $i18n('All species');
+                        query.name = $i18n("All species");
                         query.bs = $SH.biocacheServiceUrl;
                         query.ws = $SH.biocacheUrl;
                         query.q.push('*:*');
@@ -677,6 +737,7 @@
                         query.area.wms = layer.wms || '';
                         query.area.legend = layer.legend || '';
                         query.area.uid = layer.uid;
+                        query.area.type = layer.type || '';
                         return query
                     },
                     info: function (item) {
@@ -698,10 +759,10 @@
 
                             bootbox.alert("<b>Area</b><br/><br/>" +
                                 "<table class='table-striped table table-bordered'>" +
-                                "<tr><td style='width:100px'>Name</td><td>" + item.name + "</td></tr>" +
-                                "<tr><td>" + $i18n("Description") + "</td><td>" + item.description + "</td></tr>" +
-                                "<tr><td>" + $i18n("Area (sq km)") + "</td><td>" + item.area_km.toFixed(2) + "</td></tr>" +
-                                "<tr><td>" + $i18n("Extents") + "</td><td>" + b[0][0] + " " + b[0][1] + ", " +
+                                "<tr><td style='width:100px'>" + $i18n("Name") + "</td><td>" + item.name + "</td></tr>" +
+                                "<tr><td>" + $i18n(347, "Description") + "</td><td>" + item.description + "</td></tr>" +
+                                "<tr><td>" + $i18n(348, "Area (sq km)") + "</td><td>" + item.area_km.toFixed(2) + "</td></tr>" +
+                                "<tr><td>" + $i18n(349, "Extents") + "</td><td>" + b[0][0] + " " + b[0][1] + ", " +
                                 b[1][0] + " " + b[1][1] + "</td></tr></table>")
                         } else {
                             if (item.metadataUrl !== undefined) {

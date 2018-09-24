@@ -26,7 +26,8 @@ def build(String baseDir) {
                  'angular-touch/angular-touch.min.js', 'angular-ui-bootstrap/dist/ui-bootstrap-tpls.js',
                  'angular-ui-bootstrap/dist/ui-bootstrap-csp.css', 'bootbox/bootbox.min.js', 'jquery/dist/jquery.min.js',
                  'ng-file-upload/dist/ng-file-upload.js', 'ngbootbox/dist/ngBootbox.min.js',
-                 'bootstrap/dist/', 'leaflet/dist/', 'leaflet-draw/dist/']
+                 'bootstrap/dist/', 'leaflet/dist/', 'leaflet-draw/dist/', 'proj4/dist/proj4.js',
+                 'proj4leaflet/src/proj4leaflet.js']
     files.each { name ->
         def dst = new File(baseDir + '/grails-app/assets/node_modules/' + name)
         dst.getParentFile().mkdirs()
@@ -96,25 +97,13 @@ def build(String baseDir) {
 
     println 'existing i18n keys: ' + prop.size()
 
-    // get last idx value from templates
-    for (File f : new File(baseDir + '/grails-app/assets/javascripts/spApp/templates/').listFiles()) {
-        String input = FileUtils.readFileToString(f)
+    // get last idx value from templates. looking for attributes i18n="#"
+    idx = findLastIndex(baseDir + '/grails-app/assets/javascripts/spApp/templates', "i18n=\"", "\"")
 
-        start = 0
-        while(start < input.length() && start >= 0) {
-            def next = input.indexOf("i18n=\"", start)
-            if (next > 0) {
-                def end = input.indexOf("\"", next + 6)
-                if (end > 0) {
-                    def value = Integer.parseInt(input.substring(next + 6, end))
-                    idx = Math.max(idx, value)
-                }
-
-                start = next + 1
-            } else {
-                start = -1
-            }
-        }
+    // get last idx value from javascript. looking for function '$i18n(#, "default")'
+    def jsDirs = ['controller', 'directive', 'leaflet', 'service']
+    for (String jsDir : jsDirs) {
+        idx = Math.max(idx, findLastIndex(baseDir + '/grails-app/assets/javascripts/spApp/' + jsDir, "\$i18n(", ", \""))
     }
 
     idx++
@@ -211,11 +200,74 @@ def build(String baseDir) {
             }
         }
 
-        // overwrite template file
-        FileUtils.writeStringToFile(f, output.toString())
-
         if (newCount > 0) {
+            // overwrite template file
+            FileUtils.writeStringToFile(f, output.toString())
+
             print " - $newCount new keys, "
+        }
+    }
+
+    for (def jsDir : jsDirs) {
+        for (File f : new File(baseDir + '/grails-app/assets/javascripts/spApp/' + jsDir).listFiles()) {
+
+            def label = ' ' + f.name
+            print(label)
+            def newCount = 0
+
+            String input = FileUtils.readFileToString(f)
+
+            def output = new StringBuilder()
+
+            start = 0
+            while (start < input.length() && start != -1) {
+                // indexOf next $i18n call that does not have a messages.properties entry
+                def next = input.indexOf("\$i18n(\"", start)
+
+                if (next > start) {
+                    output.append(input.substring(start, next))
+
+                    // find end of the default value that is wrapped in " and may contain escaped values \"
+                    def end = input.indexOf("\")", next + 7)
+                    while (input.indexOf("\\\"", end - 1) == end - 1) {
+                        end = input.indexOf("\")", end + 1)
+                    }
+
+                    // find or create the properties idx for this value
+                    if (end > next + 6) {
+                        def value = input.substring(next + 7, end)
+                        def currentIdx = idx
+                        if (all.containsKey(value)) {
+                            currentIdx = all.get(value)
+                        } else {
+                            all.put(value, idx)
+                            idx++
+
+                            newProperties.append("\n${currentIdx}=${value}")
+                            newCount++
+                            totalNewProperties++
+                        }
+
+                        output.append("\$i18n(${currentIdx}, \"${value}\")")
+                        start = end + 2
+                    } else {
+                        // write the failed match so it is not found on the next loop
+                        output.append(input.substring(next, next + 6))
+                        start = next + 6
+                    }
+                } else {
+                    // write the remaining text and exit loop
+                    output.append(input.substring(start, input.length()))
+                    start = -1
+                }
+            }
+
+            if (newCount > 0) {
+                // overwrite template file
+                FileUtils.writeStringToFile(f, output.toString())
+
+                print " - $newCount new keys, "
+            }
         }
     }
 
@@ -227,6 +279,34 @@ def build(String baseDir) {
     }
     FileUtils.writeStringToFile(p, newProperties.toString(), true)
     println("i18n done")
+}
+
+def findLastIndex(directory, startString, endString) {
+    int last_idx = 0
+    int startStringLen = startString.length()
+    for (File f : new File(directory).listFiles()) {
+        String input = FileUtils.readFileToString(f)
+
+        start = 0
+        while (start < input.length() && start >= 0) {
+            def next = input.indexOf(startString, start)
+            if (next > 0) {
+                def end = input.indexOf(endString, next + startStringLen)
+                if (end > 0) {
+                    def value = input.substring(next + startStringLen, end)
+                    if (value.isNumber()) {
+                        last_idx = Math.max(last_idx, Integer.parseInt(value))
+                    }
+                }
+
+                start = next + 1
+            } else {
+                start = -1
+            }
+        }
+    }
+
+    return last_idx
 }
 
 def process(doc, nextIdx, update) {

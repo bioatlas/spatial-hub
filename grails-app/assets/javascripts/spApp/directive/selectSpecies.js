@@ -162,7 +162,7 @@
                                     gs = ["geospatial_kosher:*"]
                                 }
 
-                                var absent = ["-occurrence_status_s:absent"];
+                                var absent = [$SH.fqExcludeAbsent];
                                 if (scope.includeAbsences) {
                                     absent = []
                                 }
@@ -194,7 +194,7 @@
                                 scope.clearQ();
                             } else if (scope.speciesOption === 'allSpecies') {
                                 scope.setQ({
-                                    q: ["*:*"], name: 'All species', bs: $SH.biocacheServiceUrl,
+                                    q: ["*:*"], name: $i18n("All species"), bs: $SH.biocacheServiceUrl,
                                     ws: $SH.biocacheUrl
                                 })
                             } else if (scope.speciesOption === 'searchSpecies') {
