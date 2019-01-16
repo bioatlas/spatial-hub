@@ -2,16 +2,19 @@
     <div class="btn-group" id="menu-content">
 
         <div class="btn-group" role="group" ng-repeat="menu in menuConfig">
-            <button style="width:{{ menu.width }}px" id="menu-{{ $index }}" type="button"
+            <button ng-style='{ width:"{{ menu.width }}px" }' id="menu-{{ $index }}" type="button"
                     class="btn btn-default dropdown-toggle"
                     data-toggle="dropdown" aria-haspopup="true" aria-expanded="false" ng-disabled="disabled">
                 {{ menu.name }}&nbsp;<span class="caret"></span>
             </button>
             <ul class="dropdown-menu" role="menu" aria-labelledby="menu-{{ $index }}">
-                <li role="menuitem" ng-repeat="button in menu.items">
-                    <a ng-if="button['open'].match('^https?://.*') == null" href="#" ng-click="run(button)">{{
+                <li role="menuitem" ng-repeat="button in menu.items"
+                    class="ng-class: !button['separator'] || 'separator'">
+                    <a ng-if="!button['separator'] && button['open'].match('^https?://.*') == null" href="#"
+                       ng-click="run(button)">{{
                         button.name }}</a>
-                    <a ng-if="button['open'].match('^https?://.*') != null" target="_blank" href="{{ button.open }}">{{
+                    <a ng-if="!button['separator'] && button['open'].match('^https?://.*') != null" target="_blank"
+                       href="{{ button.open }}">{{
                         button.name }}</a>
                 </li>
             </ul>

@@ -17,10 +17,12 @@
 <script src="portal/messages.js?id=${messagesAge}" type="text/javascript" defer></script>
 <script src="https://maps.google.com/maps/api/js?language=en-US&libraries=places&key=${grailsApplication.config.google.apikey}" type="text/javascript"></script>
 
+
 <g:set var="sandboxUrl" value="${grailsApplication.config.sandbox.uiUrl}"></g:set>
 
 <script type="text/javascript">
     $SH = {
+        enviroment:'${grails.util.Environment.current}',
         baseUrl: '${config.grails.serverURL}',
         biocacheUrl: '${config.biocache.url}',
         biocacheServiceUrl: '${config.biocacheService.url}',
@@ -102,7 +104,8 @@
         wmsIntersect: ${config.wms.intersect},
         projections: ${(config.projections as grails.converters.JSON).toString().encodeAsRaw()},
         projection: '${config.projection.default}',
-        fqExcludeAbsent: '${config.fq.excludeAbsent}'
+        fqExcludeAbsent: '${config.fq.excludeAbsent}',
+        biocollectUrl: '${config.biocollect.url}'
     };
 
     BIE_VARS = {

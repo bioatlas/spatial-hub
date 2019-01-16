@@ -18,6 +18,16 @@
 
                 initLocalTools();
 
+                var _httpDescription = function (method, httpconfig) {
+                    if (httpconfig === undefined) {
+                        httpconfig = {};
+                    }
+                    httpconfig.service = 'ToolsService';
+                    httpconfig.method = method;
+
+                    return httpconfig;
+                };
+
                 /*
                 uiScope is ToolCtrl
                  */
@@ -27,7 +37,7 @@
                     m['name'] = uiScope.toolName;
 
                     var url = $SH.baseUrl + '/portal/postTask?sessionId=' + $SH.sessionId;
-                    $http.post(url, m).then(function (response) {
+                    $http.post(url, m, _httpDescription('executeRemote')).then(function (response) {
                         uiScope.externalTaskId = response.data.id;
                         uiScope.statusUrl = LayersService.url() + '/tasks/status/' + response.data.id;
                         $timeout(function () {
@@ -45,7 +55,7 @@
                     if (uiScope.cancelled) {
                         return;
                     }
-                    return $http.get(uiScope.statusUrl + "?last=" + uiScope.last).then(function (response) {
+                    return $http.get(uiScope.statusUrl + "?last=" + uiScope.last, _httpDescription('checkStatus')).then(function (response) {
                         uiScope.status = response.data.message;
 
                         var keys = [];
@@ -82,6 +92,7 @@
 
                 function _executeResult(uiScope) {
                     var layers = [];
+                    var nextprocess;
 
                     for (k in uiScope.finishedData.output) {
                         if (uiScope.finishedData.output.hasOwnProperty(k)) {
@@ -117,10 +128,15 @@
                                 //can only display one csv file
                                 var url = LayersService.url() + '/tasks/output/' + uiScope.finishedData.id + '/' + d.file;
                                 csvFile = d.file;
-                                $http.get(url).then(function (data) {
+                                $http.get(url, _httpDescription('getCsv')).then(function (data) {
                                     LayoutService.openModal('csv', {
                                         title: uiScope.toolName + " (" + csvFile + ")",
                                         csv: data.data,
+                                        columnOrder: ['Species Name',
+                                        'Vernacular Name',
+                                        'Number of records',
+                                        'Conservation',
+                                        'Invasive'],
                                         info: '',
                                         filename: csvFile,
                                         display: {size: 'full'}
@@ -143,7 +159,7 @@
                                     }
                                 });
                             } else if (d.name === 'area') {
-                                if (d.file.indexOf("{") == 0) {
+                                if (d.file.indexOf("{") === 0) {
                                     // parse JSON response
                                     // ENVELOPE is the only output of this type
                                     var json = JSON.parse(d.file);
@@ -175,6 +191,15 @@
                                 q.scatterplotDataUrl = uiScope.downloadUrl;
 
                                 promises.push(MapService.add(q))
+                            } else if (d.name === 'nextprocess') {
+                                var nextinput = jQuery.parseJSON(d.file);
+
+                                // format 'nextprocess' output for LayoutService.openModal
+                                nextprocess = {
+                                    processName: nextinput.process,
+                                    overrideValues: {}
+                                };
+                                nextprocess.overrideValues[nextinput.process] = {input: nextinput.input};
                             }
                         }
                     }
@@ -200,6 +225,12 @@
                     return $q.all(promises).then(function () {
                         uiScope.finished = true;
                         uiScope.$close();
+
+                        if (nextprocess) {
+                            $timeout(function () {
+                                LayoutService.openModal('tool', nextprocess, false);
+                            }, 0)
+                        }
                     })
                 }
 

@@ -617,10 +617,18 @@ form.banner {
 .icon-expand-up { background-image: url(icon-expand-up.png); background-size: 26px 26px; }
 .icon-expand-right { background-image: url(icon-expand-right.png); background-size: 26px 26px; }
 .icon-expand-down { background-image: url(icon-expand-down.png); background-size: 26px 26px; }
-.icon-panoramio { background-image: url(images_on.png); background-size: 18px 18px; }
-.icon-exit-panoramio { background-image: url(images_off.png); background-size: 18px 18px; }
 
-.icon-spin-panoramio {
+.icon-panoramio, .icon-poi {
+    background-image: url(images_on.png);
+    background-size: 18px 18px;
+}
+
+.icon-exit-panoramio, .icon-exit-poi {
+    background-image: url(images_off.png);
+    background-size: 18px 18px;
+}
+
+.icon-spin-panoramio, .icon-spin-poi {
     background: url(../images/spinner.gif);
     background-repeat: no-repeat;
     background-position-x: 100%;
@@ -2160,4 +2168,31 @@ body > footer > div > div.col-md-12.acknowledgement-callout.acknowledgement-call
     margin-right: 50px;
     position: relative;
     z-index: 99999;
+}
+
+.glyphicon-hide {
+    color: transparent;
+}
+
+.modeless {
+    pointer-events: none;
+}
+
+.modeless + .modal-backdrop {
+    display: none;
+}
+
+.modeless > .modal-dialog > .modal-content {
+    border-radius: 6px 6px 0 0;
+    border: 2px solid;
+    pointer-events: all;
+}
+
+.modeless > .modal-dialog {
+    margin: 0px;
+}
+
+.modeless > .modal-dialog > .modal-content > .modal-body {
+    height: 500px;
+    overflow-y: scroll;
 }

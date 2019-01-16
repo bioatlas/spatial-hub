@@ -99,10 +99,15 @@
                         // }
                     },
 
-                    openCsv: function (csv, endimic) {
+                    openCsv: function (csv, endemic) {
                         LayoutService.openModal('csv', {
                             title: (endemic ? $i18n(427, "Endemic") + ' ' : '') + $i18n(428, "Species List"),
                             csv: csv,
+                            columnOrder: ['Species Name',
+                            'Vernacular Name',
+                            'Number of records',
+                            'Conservation',
+                            'Invasive'],
                             info: '',
                             filename: (endemic ? 'endemicS' : 's') + 'peciesList.csv',
                             display: {size: 'full'}
