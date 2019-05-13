@@ -18,6 +18,8 @@
                         scope.projections = $SH.projections;
                         scope.projection = {code: $SH.projections[$SH.projection].definition.code};
 
+                        scope.config = $SH.config;
+
                         scope.selection = {
                             name: $SH.defaultBaseLayer
                         };
@@ -57,8 +59,6 @@
 
                                         //set base layer
                                         MapService.setBaseMap($SH.defaultBaseLayer);
-
-                                        MapService.leafletScope.baseMap()
                                     }
                                 }
                             );

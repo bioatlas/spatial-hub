@@ -362,7 +362,7 @@
                         type='info' title="Updating">loading...
                 </uib-progressbar>
                 <table class="table table-striped" style="width:370px;overflow:auto;display:block">
-                    <tr ng-repeat="x in selected.layer.contextualList | filter:selected.layer.contextualFilter"
+                    <tr ng-repeat="x in selected.layer.contextualList"
                         ng-click="contextualHighlight(x.name, x.pid)">
                         <td style="width:20px">
                             <input type="checkbox"
@@ -421,11 +421,13 @@
             <label i18n="146" for="uncertainty" style="width:300px">Display spatial uncertainty as a circle</label>
 
             <div ng-show="selected.layer.uncertainty"><img style="margin-left:70px;margin-bottom: 0px;"
-                                                           ng-src="assets/orangecircle.png"><label i18n="147">&lt; 30km
+                                                           ng-src="{{baseUrl}}/assets/orangecircle.png"><label
+                    i18n="147">&lt; 30km
                 (mapped
                 with actual radius)</label></div>
             <div ng-show="selected.layer.uncertainty"><img style="margin-left:70px;margin-bottom: 0px;"
-                                                           ng-src="assets/greencircle.png"><label i18n="148">&gt; 30km
+                                                           ng-src="{{baseUrl}}/assets/greencircle.png"><label
+                    i18n="148">&gt; 30km
                 (mapped with
                 30km radius)</label></div>
         </div>

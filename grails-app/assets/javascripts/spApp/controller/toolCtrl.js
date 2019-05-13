@@ -140,7 +140,12 @@
                                         ws: $SH.biocacheUrl
                                     }
                                 }
-                                else v = {q: [], name: '', bs: '', ws: ''}
+                                else v = {q: [], name: '', bs: '', ws: ''};
+
+                                // use array as the species value when constraints.max>1
+                                if (value.constraints['max'] > 1) {
+                                    v = []
+                                }
                             } else if (value.type === 'layer') {
                                 if (value.constraints['default'] !== undefined) v = value.constraints['default'];
                                 else v = {layers: []}
@@ -216,7 +221,11 @@
                     } else if (value.type === 'area') {
                         return $scope.values[i].area.length === 0
                     } else if (value.type === 'species') {
-                        return !(value.constraints.min === 0 || $scope.values[i].q.length !== 0);
+                        if ($scope.values[i] instanceof Array) {
+                            return !(value.constraints.min === 0 || $scope.values[i].length !== 0);
+                        } else {
+                            return !(value.constraints.min === 0 || $scope.values[i].q.length !== 0);
+                        }
                     } else if (value.type === 'layer') {
                         return $scope.values[i].layers.length < value.constraints.min || $scope.values[i].layers.length > value.constraints.max
                     } else if (value.type === 'boolean') {
@@ -321,7 +330,7 @@
                                             var a = $scope.values[k].area[j];
 
                                             var b = a.bbox;
-                                            if ((a.bbox + '').match(/^POLYGON/g)) {
+                                            if ((a.bbox + '').match(/^POLYGON/g) != null) {
                                                 //convert POLYGON box to bounds
                                                 var split = a.bbox.split(',');
                                                 var p1 = split[1].split(' ');
@@ -369,19 +378,17 @@
                 };
 
                 $scope.openUrl = function (url) {
-                    // Always open in a new window
-                    Util.download(url)
-
-                    // open in an iframe
-                    // LayoutService.openIframe(url, false);
+                    if (url.indexOf($SH.layersServiceUrl) != 0) {
+                        // Always open in a new window when not from spatial-service
+                        Util.download(url);
+                    } else {
+                        // open in an iframe
+                        LayoutService.openIframe(url, false);
+                    }
 
                 };
 
                 $scope.init();
-
-                $scope.getConstraintValue = function (item, constraint, deflt) {
-                    return $spNc(item.constraints, [constraint], deflt)
-                };
 
                 $scope.isLocalTask = function () {
                     return ToolsService.isLocalTask($scope.toolName)

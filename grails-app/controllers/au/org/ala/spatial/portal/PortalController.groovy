@@ -11,9 +11,8 @@ import org.apache.commons.io.FileUtils
 import org.apache.commons.lang.StringUtils
 import org.apache.http.client.methods.HttpGet
 import org.apache.http.client.methods.HttpPost
-import org.springframework.web.multipart.MultipartHttpServletRequest
-import org.springframework.web.multipart.commons.CommonsMultipartFile
 import org.springframework.web.multipart.MultipartFile
+import org.springframework.web.multipart.MultipartHttpServletRequest
 
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
@@ -129,17 +128,26 @@ class PortalController {
     def index() {
         def userId = getValidUserId(params)
 
+        def hub = params.hub
+
         if (params?.silent) {
             render html: '<html>' + (authService.userId != null ? 'isLoggedIn' : 'isLoggedOut') + '</html>'
         } else if (request.forwardURI.contains(';jsessionid=')) {
             //clean forwards from CAS
-            redirect(url: grailsApplication.config.grails.serverURL, params: params)
+            redirect(url: grailsApplication.config.grails.serverURL + (hub != null ? "/hub/" + hub : ""), params: params)
         } else {
-            render(view: 'index',
-                    model: [config   : grailsApplication.config,
-                            userId   : userId,
-                            sessionId: sessionService.newId(userId),
-                            messagesAge: messageService.messagesAge])
+            def config = portalService.getAppConfig(hub)
+            if (!config && hub) {
+                response.setStatus(HttpURLConnection.HTTP_NOT_FOUND)
+                render ''
+            } else {
+                render(view: 'index',
+                        model: [config     : config,
+                                userId     : userId,
+                                sessionId  : sessionService.newId(userId),
+                                messagesAge: messageService.messagesAge,
+                                hub        : hub])
+            }
         }
     }
 
@@ -266,7 +274,7 @@ class PortalController {
             def r = hubWebService.urlResponse(HttpPost.METHOD_NAME, url, null, null,
                     new StringRequestEntity((json as JSON).toString()))
 
-            render JSON.parse(String.valueOf(r?.text)) as JSON
+            render JSON.parse(new String(r?.text ?: "")) as JSON
         }
     }
 
@@ -308,7 +316,7 @@ class PortalController {
                 log.error("failed ${type} upload: ${r}")
                 render [:] as JSON
             } else {
-                def json = JSON.parse(String.valueOf(r?.text))
+                def json = JSON.parse(new String(r?.text ?: "{}"))
                 def shapeFileId = json.id
                 def area = json.collect { key, value ->
                     if (key == 'shp_id') {
@@ -340,7 +348,7 @@ class PortalController {
             def r = hubWebService.urlResponse(HttpPost.METHOD_NAME, url, null, null,
                     new StringRequestEntity((json as JSON).toString()))
 
-            render JSON.parse(String.valueOf(r?.text)) as JSON
+            render JSON.parse(new String(r?.text ?: "{}")) as JSON
         } else {
             render [:] as JSON
         }
@@ -362,7 +370,7 @@ class PortalController {
             if (r == null) {
                 render [:] as JSON
             } else {
-                render JSON.parse(String.valueOf(r?.text)) as JSON
+                render JSON.parse(new String(r?.text ?: "{}")) as JSON
             }
         }
     }
@@ -443,11 +451,11 @@ class PortalController {
                 def r = hubWebService.postUrl("${json.bs}/webportal/params", json)
 
                 if (r.statusCode >= 400) {
-                    log.error("Couldn't post $json to ${json.bs}/webportal/params, status code ${r.statusCode}, body: ${r.text}")
+                    log.error("Couldn't post $json to ${json.bs}/webportal/params, status code ${r.statusCode}, body: ${new String(r.text ?: "")}")
                     def result = ['error': "${r.statusCode} when calling ${json.bs}"]
                     render result as JSON, status: 500
                 } else {
-                    value = [qid: r.text] as JSON
+                    value = [qid: new String(r.text)] as JSON
 
                     if (r?.text) {
                         grailsCacheManager.getCache(portalService.caches.QID).put(json, value.toString())
@@ -472,29 +480,43 @@ class PortalController {
             String url = params.url
 
             String extra = portalService.rebuildParameters(request.parameterMap, url.contains('?'))
-            String target = url + extra
+            String target = url
+            if (extra) {
+                if (url.contains('?')) {
+                    target += "&" + extra
+                } else {
+                    target += "?" + extra
+                }
+            }
 
             response.addHeader(HttpHeaders.CACHE_CONTROL, (String) grailsApplication.config.cache.headers.control)
 
             //use caching for GET requests
             if (request.method == HttpGet.METHOD_NAME) {
-                def value = grailsCacheManager.getCache(portalService.caches.PROXY).get(params.url)
+                def value = grailsCacheManager.getCache(portalService.caches.PROXY).get(target)
                 if (value) {
                     response.setContentType((String) ((Map) value.get()).contentType)
                     ((Map) value.get()).headers.each { k, v ->
                         response.setHeader(k, v)
                     }
-                    response.outputStream << String.valueOf(((Map) value.get()).text)
+                    if (((Map) value.get()).contentType.startsWith("image")) {
+                        response.outputStream << ((Map) value.get()).text
+                    } else {
+                        response.outputStream << new String(((Map) value.get()).text)
+                    }
                 } else {
                     def headers = [:]
                     request.headerNames.each { name -> headers.put(name, request.getHeader(name)) }
 
-
                     value = hubWebService.getUrlMap(target, headers)
                     if (value) {
-                        grailsCacheManager.getCache(portalService.caches.PROXY).put(params.url, value)
+                        grailsCacheManager.getCache(portalService.caches.PROXY).put(target, value)
                         response.setContentType(String.valueOf(value.contentType))
-                        response.outputStream << String.valueOf(value.text)
+                        if (value.contentType.startsWith("image")) {
+                            response.outputStream << value.text
+                        } else {
+                            response.outputStream << new String(value.text)
+                        }
                     }
                 }
             } else {
@@ -515,20 +537,22 @@ class PortalController {
     def config(String id) {
         def userId = getValidUserId(params)
 
+        def hub = params.hub
+
         if (!userId) {
             notAuthorised()
         } else {
             def type = ["view", "menu"].contains(id) ? id : "view"
-            def config = portalService.getConfig(type, params?.version?.equalsIgnoreCase(defaultConfigLabel()) ?: false)
+            def config = portalService.getConfig(type, params?.version?.equalsIgnoreCase(defaultConfigLabel()) ?: false, hub)
 
             if (params.version && !params.version.equalsIgnoreCase(defaultConfigLabel())) {
                 if (params.version != "current" && params.version != "json") {
-                    def file = new File("/data/spatial-hub/config/" + type + "-config." + params.version + ".json")
+                    def file = new File("/data/spatial-hub/config/" + (hub != null ? hub + "/" : "") + type + "-config." + params.version + ".json")
 
                     if (file.exists()) {
                         config = JSON.parse(new FileReader(file))
                     } else {
-                        config = ""
+                        config = "{}"
                     }
                 }
             } else {

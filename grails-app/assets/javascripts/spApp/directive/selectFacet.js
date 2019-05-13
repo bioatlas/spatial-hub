@@ -25,7 +25,7 @@
                         scope.exportUrl = null;
 
 
-                        FacetAutoCompleteService.search(BiocacheService.newQuery("-*:*")).then(function (data) {
+                        FacetAutoCompleteService.search(BiocacheService.newQuery(["-*:*"])).then(function (data) {
                             scope.facets = data
                         });
 
@@ -101,16 +101,14 @@
 
                             scope.applySelection();
 
-                            var qid = "*:*";
-                            if (scope.facetFilter.length > 0) {
-                                qid = scope.facet + ":*" + scope.facetFilter + "*"
-                            }
+                            var qid = ["*:*"];
+                            if ($SH.qc !== undefined && $SH.qc != null && $SH.qc.length > 0) qid = [$SH.qc];
                             var pageSize = 10;
                             var offset = scope.offset;
                             BiocacheService.facetGeneral(scope.facet, {
                                 qid: qid,
                                 bs: $SH.biocacheServiceUrl
-                            }, pageSize, offset, config).then(function (data) {
+                            }, pageSize, offset, scope.facetFilter, config).then(function (data) {
                                 if (data.length > 0) {
                                     scope.facetList = data[0].fieldResult;
                                     scope.exportUrl = BiocacheService.facetDownload(scope.facet);
@@ -176,7 +174,7 @@
                             var count = 0;
                             for (var i = 0; i < scope.selection.length; i++) {
                                 var fq = scope.selection[i].fq;
-                                if (fq.match(/^-/g) && (fq.match(/:\*$/g) || fq.match(/\[\* TO \*\]$/g))) {
+                                if (fq.match(/^-/g) != null && (fq.match(/:\*$/g) != null || fq.match(/\[\* TO \*\]$/g) != null)) {
                                     invert = true
                                 }
                                 count++
@@ -187,7 +185,7 @@
 
                                 if (invert) {
                                     if (sel.length > 0) sel += " AND ";
-                                    if (fq.match(/^-/g) && (fq.match(/:\*$/g) || fq.match(/\[\* TO \*\]$/g))) {
+                                    if (fq.match(/^-/g) != null && (fq.match(/:\*$/g) != null || fq.match(/\[\* TO \*\]$/g) != null)) {
                                         sel += fq.substring(1)
                                     } else {
                                         sel += '-' + fq

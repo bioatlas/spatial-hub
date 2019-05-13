@@ -329,7 +329,6 @@
                     }
 
                     this.toggleDisplayLayer = function (targetedlayer) {
-                        console.log(targetedlayer.name + " " + targetedlayer.isDisplayed)
                         var result = {layer: undefined, index: 0}
                         var futureLayerIdx = 0;
 
@@ -463,7 +462,6 @@
                         var fq = this.buildAdhocQuery()
                         if (fq.length > 0)
                             biocacheService.count(layer, fq).then(function (count) {
-                                console.log(count + ' occurence(s) are selected.')
                                 layer.adhocGroupSize = count;
                             });
                         else
@@ -915,7 +913,7 @@
                             existingParams = split[1].split('&');
                         }
                         for (var i in existingParams) {
-                            if (!existingParams[i].match(/^layers=.*/)) {
+                            if (existingParams[i].match(/^layers=.*/) == null) {
                                 urlBase += '&' + existingParams[i];
                             }
                         }
@@ -965,6 +963,7 @@
                         var blockString = "--------------------------------------------";
                         for (var ly in layers) {
                             var layerName = layers[ly].leaflet.layerOptions.layers[0].layerOptions.layers;
+                            layerName = layerName.replace("ALA:", "");
                             var field = LayersService.getLayer(layers[ly].id + '');
                             var sname;
                             if (field) {
@@ -983,7 +982,7 @@
 
                                 if (sname) {
                                     for (var i in properties) {
-                                        if (properties[i].toUpperCase().match('^' + sname.toUpperCase() + ' = .*')) {
+                                        if (properties[i].toUpperCase().match('^' + sname.toUpperCase() + ' = .*') != null) {
                                             value = properties[i].substring(properties[i].indexOf('=') + 2, properties[i].length).trim();
                                         }
                                     }

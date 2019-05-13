@@ -8,8 +8,8 @@
      *    Panel displaying selected map layer information and controls
      */
     angular.module('sp-legend-directive', ['map-service', 'biocache-service', 'layers-service', 'popup-service'])
-        .directive('spLegend', ['$timeout', '$q', 'MapService', 'BiocacheService', 'LayersService', 'ColourService', '$http', 'LayoutService', 'PopupService',
-            function ($timeout, $q, MapService, BiocacheService, LayersService, ColourService, $http, LayoutService, PopupService) {
+        .directive('spLegend', ['$timeout', '$q', 'MapService', 'BiocacheService', 'LayersService', 'ColourService', '$http', 'LayoutService', 'PopupService', 'LoggerService',
+            function ($timeout, $q, MapService, BiocacheService, LayersService, ColourService, $http, LayoutService, PopupService, LoggerService) {
 
                 var _httpDescription = function (method, httpconfig) {
                     if (httpconfig === undefined) {
@@ -25,6 +25,8 @@
                     scope: {},
                     templateUrl: '/spApp/legendContent.htm',
                     link: function (scope, element, attrs) {
+                        scope.baseUrl = $SH.baseUrl; // for image icons
+
                         scope.facetFilter = '';
                         scope.fq = [];
                         scope.yearMin = 1800;
@@ -45,8 +47,9 @@
                             }
                         };
 
-                        scope.$watch('getSelected()', function (oldValue, newValue) {
+                        scope.$watch('selected.layer.uid', function (oldValue, newValue) {
                             scope.setAreaLayers();
+                            scope.updateFacet();
                         });
 
                         scope.showLegend = function () {
@@ -97,7 +100,8 @@
                         scope.contextualClearHighlight = function () {
                             if (scope.selected.layer !== undefined) {
                                 //remove highlight layer
-                                scope.selected.layer.contextualHighlight = ""
+                                scope.selected.layer.contextualHighlight = "";
+                                MapService.setHighlightVisible(false);
                             }
                         };
 
@@ -187,7 +191,7 @@
                                     var bTemp = undefined;
                                     if (i > 0) bTemp = bbox;
                                     bbox = objects[i].bbox;
-                                    if ((objects[i].bbox + '').match(/^POLYGON/g)) {
+                                    if ((objects[i].bbox + '').match(/^POLYGON/g) != null) {
                                         //convert POLYGON box to bounds
                                         var split = objects[i].bbox.split(',');
                                         var p1 = split[1].split(' ');
@@ -404,7 +408,7 @@
                                 for (var i = 0; i < scope.selected.layer.facetList[scope.selected.layer.facet].length; i++) {
                                     if (scope.selected.layer.facetList[scope.selected.layer.facet][i].selected) {
                                         var fq = scope.selected.layer.facetList[scope.selected.layer.facet][i].fq;
-                                        if (fq.match(/^-/g) && (fq.match(/:\*$/g) || fq.match(/\[\* TO \*\]$/g))) {
+                                        if (fq.match(/^-/g) != null && (fq.match(/:\*$/g) != null || fq.match(/\[\* TO \*\]$/g) != null)) {
                                             invert = true
                                         }
                                         count++;
@@ -420,7 +424,7 @@
 
                                         if (invert) {
                                             if (sel.length > 0) sel += " AND ";
-                                            if (fq.match(/^-/g) && (fq.match(/:\*$/g) || fq.match(/\[\* TO \*\]$/g))) {
+                                            if (fq.match(/^-/g) != null && (fq.match(/:\*$/g) != null || fq.match(/\[\* TO \*\]$/g) != null)) {
                                                 sel += fq.substring(1)
                                             } else {
                                                 sel += '-' + fq
@@ -466,8 +470,6 @@
                         scope.asyncFacetCounts = function (queue, results) {
                             scope.facetProgress = (results.length + 1) + " of " + (queue.length + results.length);
                             var facetCount = queue.pop();
-                            console.log(queue.length);
-                            console.log(facetCount);
                             return scope.getFacetItemCount(facetCount[0], scope.selected.layer, facetCount[1]).then(
                                 function (data) {
                                     results.push(data);
@@ -668,7 +670,7 @@
                         };
 
                         scope.updateWMS = function () {
-                            if (scope.selected.layer !== undefined) {
+                            if (scope.selected.layer !== undefined && scope.selected.layer !== null) {
                                 scope.selected.layer.wms = scope.selected.layer.name + ', ' + scope.selected.layer.color + ', '
                                     + scope.selected.layer.colorType + ', ' + scope.selected.layer.opacity + ', '
                                     + scope.selected.layer.uncertainty + ', ' + scope.selected.layer.size;

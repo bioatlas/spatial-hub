@@ -40,21 +40,15 @@
                         return licenseList;
                     }
 
-                    var url = $SH.flickrUrl + $SH.flickrLicensesInfo
-                        + '&api_key=' + $SH.flickrApiKey
-                        + '&format=json&nojsoncallback=1';
+                    var result = {};
+                    if ($SH.flickrLicensesData && $SH.flickrLicensesData.licenses && $SH.flickrLicensesData.licenses.license) {
+                        angular.forEach($SH.flickrLicensesData.licenses.license, function (lic) {
+                            result[lic.id] = lic.name;
+                        });
+                    }
 
-                    return $http.get(url, _httpDescription('getLicences')).then(function (response) {
-                        if (response.data.licenses) {
-                            var result = {};
-                            angular.forEach(response.data.licenses.license, function (lic) {
-                                result[lic.id] = lic.name;
-                            });
-
-                            flickrCache.put('licences', result);
-                            return result;
-                        }
-                    });
+                    flickrCache.put('licences', result);
+                    return result;
                 },
 
                 getLicense: function (licenseId) {

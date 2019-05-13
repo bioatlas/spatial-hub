@@ -40,6 +40,10 @@
                     $http.post(url, m, _httpDescription('executeRemote')).then(function (response) {
                         uiScope.externalTaskId = response.data.id;
                         uiScope.statusUrl = LayersService.url() + '/tasks/status/' + response.data.id;
+
+                        // Create log entry for an external tool when the task is created with the taskId
+                        LoggerService.log('Tool', uiScope.toolName, '{ "taskId": "' + externalTaskId + '"}')
+
                         $timeout(function () {
                             _checkStatus(uiScope);
                         }, 5000)
@@ -83,13 +87,36 @@
                             uiScope.status = 'error';
                             uiScope.finished = true
                         } else if (response.data.status === 4) {
-                            uiScope.status = 'successful';
-                            uiScope.finishedData = response.data;
-                            return _executeResult(uiScope)
+                            if (response.data.output === undefined) {
+                                uiScope.status = 'error';
+                                uiScope.finished = true
+                            } else {
+                                uiScope.status = 'successful';
+                                uiScope.finishedData = response.data;
+                                return _executeResult(uiScope)
+                            }
                         }
                     })
                 }
 
+                /**
+                 * Operate on tool output uiScope.finishedData.output.
+                 *
+                 * Match output file:
+                 * *.zip - Automatically initiate download when uiScope.spec.download==true
+                 * *.html - Assigned to metadataUrl. LayersServiceUrl metadataUrls are opened in an iframe, others in a new tab
+                 * *.csv - Opened with CsvCtrl only when there is no *.html
+                 * *.tif - Add to the map as a new environmental layer
+                 *
+                 * Match output name:
+                 * "area" - Add a new area to the map
+                 * "species" - Add a new species layer to the map
+                 * "nextprocess" - Initiate a new tool
+                 *
+                 * @param uiScope
+                 * @returns {Promise<any>}
+                 * @private
+                 */
                 function _executeResult(uiScope) {
                     var layers = [];
                     var nextprocess;
@@ -97,8 +124,8 @@
                     for (k in uiScope.finishedData.output) {
                         if (uiScope.finishedData.output.hasOwnProperty(k)) {
                             var d = uiScope.finishedData.output[k];
-                            if (d.file && d.file.match(/\.zip$/g)) {
-                                var filename = uiScope.toolName + " (" + uiScope.externalTaskId + ").zip";
+                            if (d.file && d.file.match(/\.zip$/g) != null) {
+                                var filename = uiScope.toolName + " (" + (uiScope.taskId || uiScope.externalTaskId) + ").zip";
                                 uiScope.downloadUrl = LayersService.url() + '/tasks/output/' + uiScope.finishedData.id + '/' + encodeURI(filename) + '?filename=' + d.file;
 
                                 if (uiScope.downloadImmediately && uiScope.spec.download !== false) {
@@ -114,35 +141,22 @@
                         }
                     }
 
+                    var csvFile = null;
+                    var csvUrl = null;
                     for (k in uiScope.finishedData.output) {
                         if (uiScope.finishedData.output.hasOwnProperty(k)) {
-                            var csvFile = '';
                             var d = uiScope.finishedData.output[k];
                             if (d.openUrl) {
                                 uiScope.metadataUrl = d.openUrl
-                            } else if (d.file && d.file.match(/\.zip$/g)) {
+                            } else if (d.file && d.file.match(/\.zip$/g) != null) {
                                 //processed earlier
-                            } else if (d.file && d.file.match(/\.html$/g)) {
+                            } else if (d.file && d.file.match(/\.html$/g) != null) {
                                 uiScope.metadataUrl = LayersService.url() + '/tasks/output/' + uiScope.finishedData.id + '/' + d.file
-                            } else if (d.file && d.file.match(/\.csv/g)) {
+                            } else if (d.file && d.file.match(/\.csv/g) != null) {
                                 //can only display one csv file
-                                var url = LayersService.url() + '/tasks/output/' + uiScope.finishedData.id + '/' + d.file;
+                                csvUrl = LayersService.url() + '/tasks/output/' + uiScope.finishedData.id + '/' + d.file;
                                 csvFile = d.file;
-                                $http.get(url, _httpDescription('getCsv')).then(function (data) {
-                                    LayoutService.openModal('csv', {
-                                        title: uiScope.toolName + " (" + csvFile + ")",
-                                        csv: data.data,
-                                        columnOrder: ['Species Name',
-                                        'Vernacular Name',
-                                        'Number of records',
-                                        'Conservation',
-                                        'Invasive'],
-                                        info: '',
-                                        filename: csvFile,
-                                        display: {size: 'full'}
-                                    }, false)
-                                });
-                            } else if (d.file && d.file.match(/\.tif$/g)) {
+                            } else if (d.file && d.file.match(/\.tif$/g) != null) {
                                 var name = d.file.replace('/layer/', '').replace('.tif', '');
                                 layers.push({
                                     id: name,
@@ -179,6 +193,7 @@
                                     //might be an area pid
                                     promises.push(LayersService.getObject(d.file).then(function (data) {
                                         data.data.layertype = 'area';
+                                        data.data.log = false // The task is logged, no need to log adding the layer
                                         return MapService.add(data.data)
                                     }))
                                 }
@@ -189,6 +204,8 @@
                                 q.opacity = 60;
 
                                 q.scatterplotDataUrl = uiScope.downloadUrl;
+
+                                q.log = false // The task is logged, no need to log adding the layer
 
                                 promises.push(MapService.add(q))
                             } else if (d.name === 'nextprocess') {
@@ -209,18 +226,30 @@
                             var layer = this;
                             if (uiScope.metadataUrl !== null) layer.metadataUrl = uiScope.metadataUrl;
                             layer.name = uiScope.toolName + " (" + layer.name + ")";
+
+                            layer.log = false // The task is logged, no need to log adding the layer
+
                             promises.push(MapService.add(layer));
                         })
                     }
 
                     if (uiScope.metadataUrl !== null) {
-                        LoggerService.log('Tools', uiScope.toolName,
-                            '{ "taskId": "' + uiScope.finishedData.id + '", "metadataUrl": "' + uiScope.metadataUrl + '"}')
-                    } else {
-                        LoggerService.log('Tools', uiScope.toolName, '{ "taskId": "' + uiScope.finishedData.id + '"}')
-                    }
+                        uiScope.openUrl(uiScope.metadataUrl);
+                    } else if (csvUrl !== null) {
+                        $http.get(csvUrl, _httpDescription('getCsv')).then(function (data) {
+                            var columnOrder = uiScope.spec.output.columnOrder;
+                            if (!columnOrder) columnOrder = [];
 
-                    if (uiScope.metadataUrl !== null) uiScope.openUrl(uiScope.metadataUrl);
+                            LayoutService.openModal('csv', {
+                                title: uiScope.toolName + " (" + csvFile + ")",
+                                csv: data.data,
+                                columnOrder: columnOrder,
+                                info: '',
+                                filename: csvFile,
+                                display: {size: 'full'}
+                            }, false)
+                        });
+                    }
 
                     return $q.all(promises).then(function () {
                         uiScope.finished = true;
@@ -246,6 +275,10 @@
                         result.then(function (response) {
                             uiScope.finishedData = response;
                             _executeResult(uiScope);
+
+                            // Create log entry for a local tool when the task is finished with the input data
+                            LoggerService.log('Tool', uiScope.toolName, JSON.stringify(inputs))
+
                             uiScope.$close();
                         })
                     } else {
@@ -262,7 +295,7 @@
                     //inject all Tools into ToolsService
                     $.each(spApp.requires, function (x) {
                         var v = spApp.requires[x];
-                        if (v.match(/-service$/g) && v.match(/^tool-/g)) {
+                        if (v.match(/-service$/g) != null && v.match(/^tool-/g) != null) {
                             var name = v.replace(/-.|^./g, function (match) {
                                 return match.toUpperCase().replace('-', '')
                             });

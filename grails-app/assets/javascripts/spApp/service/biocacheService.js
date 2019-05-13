@@ -32,7 +32,7 @@
                  * - query
                  *  {
                  *      "q": ["Macropus"],
-                 *      "bs": "https://biocache.ala.org.au/ws",
+                 *      "bs": "https://biocache-ws.ala.org.au/ws",
                  *      "ws": "https://biocache.ala.org.au"
                  *  }
                  * - fqs
@@ -65,7 +65,7 @@
                  * - query
                  *  {
                  *      "q": ["Macropus"],
-                 *      "bs": "https://biocache.ala.org.au/ws",
+                 *      "bs": "https://biocache-ws.ala.org.au/ws",
                  *      "ws": "https://biocache.ala.org.au"
                  *  }
                  * - fqs
@@ -98,7 +98,7 @@
                  * - query
                  *  {
                  *      "q": ["Macropus"],
-                 *      "bs": "https://biocache.ala.org.au/ws",
+                 *      "bs": "https://biocache-ws.ala.org.au/ws",
                  *      "ws": "https://biocache.ala.org.au"
                  *  }
                  * - fqs
@@ -128,14 +128,14 @@
                  * - query
                  *  {
                  *      "q": ["Macropus"],
-                 *      "bs": "https://biocache.ala.org.au/ws",
+                 *      "bs": "https://biocache-ws.ala.org.au/ws",
                  *      "ws": "https://biocache.ala.org.au"
                  *  }
                  * - fqs
                  *  ["geospatial_kosher:true"]
                  *
                  * Output:
-                 *  "http://biocache.ala.org.au/ws/occurrences/facets/download?facets=names_and_lsid&lookup=true&count=true&lists=true&q=Macropus&fq=geospatial_kosher:true"
+                 *  "https://biocache-ws.ala.org.au/ws/occurrences/facets/download?facets=names_and_lsid&lookup=true&count=true&lists=true&q=Macropus&fq=geospatial_kosher:true"
                  */
                 speciesListUrl: function (query, fqs) {
                     var fqList = (fqs === undefined ? '' : '&fq=' + this.joinAndEncode(fqs));
@@ -155,7 +155,7 @@
                  * - query
                  *  {
                  *      "q": ["Macropus"],
-                 *      "bs": "https://biocache.ala.org.au/ws",
+                 *      "bs": "https://biocache-ws.ala.org.au/ws",
                  *      "ws": "https://biocache.ala.org.au"
                  *  }
                  * - fqs
@@ -187,7 +187,7 @@
                  * - query
                  *  {
                  *      "q": ["Macropus"],
-                 *      "bs": "https://biocache.ala.org.au/ws",
+                 *      "bs": "https://biocache-ws.ala.org.au/ws",
                  *      "ws": "https://biocache.ala.org.au"
                  *  }
                  * - fqs
@@ -217,7 +217,7 @@
                  * - query
                  *  {
                  *      "q": ["Macropus"],
-                 *      "bs": "https://biocache.ala.org.au/ws",
+                 *      "bs": "https://biocache-ws.ala.org.au/ws",
                  *      "ws": "https://biocache.ala.org.au"
                  *  }
                  * - fqs
@@ -229,7 +229,7 @@
                 dataProviderList: function (query, fqs) {
                     var fqList = (fqs === undefined ? '' : '&fq=' + this.joinAndEncode(fqs));
                     return this.registerQuery(query).then(function (response) {
-                        return $http.jsonp(query.bs + "/webportal/dataProviders?q=" + response.qid + fqList, _httpDescription('dataProviderList')).then(function (response) {
+                        return $http.get(query.bs + "/webportal/dataProviders?q=" + response.qid + fqList, _httpDescription('dataProviderList')).then(function (response) {
                             return response.data;
                         });
                     })
@@ -246,7 +246,7 @@
                  * - query
                  *  {
                  *      "q": ["Macropus"],
-                 *      "bs": "https://biocache.ala.org.au/ws",
+                 *      "bs": "https://biocache-ws.ala.org.au/ws",
                  *      "ws": "https://biocache.ala.org.au"
                  *  }
                  * - fqs
@@ -263,9 +263,7 @@
 
                         return $http.get(url, _httpDescription('count')).then(function (response) {
                             if (response.data !== undefined && response.data.totalRecords !== undefined) {
-                                var c = response.data.totalRecords ? response.data.totalRecords : 0
-                                console.log('Occurence count: ' + c);
-                                return c;
+                                return response.data.totalRecords ? response.data.totalRecords : 0
                             }
                         });
                     })
@@ -282,7 +280,7 @@
                  * - query
                  *  {
                  *      "q": ["Macropus"],
-                 *      "bs": "https://biocache.ala.org.au/ws",
+                 *      "bs": "https://biocache-ws.ala.org.au/ws",
                  *      "ws": "https://biocache.ala.org.au"
                  *  }
                  * - fqs
@@ -291,10 +289,9 @@
                  * Output:
                  *  "<span>Macropus</span>"
                  */
-                queryTitle: function (query, fqs) {
-                    var fqList = (fqs === undefined ? '' : '&fq=' + this.joinAndEncode(fqs));
+                queryTitle: function (query) {
                     return this.registerQuery(query).then(function (response) {
-                        return $http.get(query.bs + "/webportal/params/details/" + response.qid.replace("qid:", "") + fqList, _httpDescription('queryTitle')).then(function (response) {
+                        return $http.get(query.bs + "/webportal/params/details/" + response.qid.replace("qid:", ""), _httpDescription('queryTitle')).then(function (response) {
                             if (response.data !== undefined && response.data.displayString !== undefined) {
                                 //remove html wrapping from title
                                 var div = document.createElement('div');
@@ -321,14 +318,14 @@
                  * - query
                  *  {
                  *      "q": ["Macropus"],
-                 *      "bs": "https://biocache.ala.org.au/ws",
+                 *      "bs": "https://biocache-ws.ala.org.au/ws",
                  *      "ws": "https://biocache.ala.org.au"
                  *  }
                  * - fqs
                  *  ["geospatial_kosher:true"]
                  *
                  * Output:
-                 *  "http://biocache.ala.org.au/ws/occurrences/search?q=Macropus&fq=geospatial_kosher:true&pageSize=1&offset=0&facet=false"
+                 *  "http://biocache-ws.ala.org.au/ws/occurrences/search?q=Macropus&fq=geospatial_kosher:true&pageSize=1&offset=0&facet=false"
                  */
                 constructSearchResultUrl: function (query, fqs, pageSize, offset, facet) {
                     facet = facet || false;
@@ -354,7 +351,7 @@
                  * - query
                  *  {
                  *      "q": ["taxon_name:Macropus"],
-                 *      "bs": "https://biocache.ala.org.au/ws",
+                 *      "bs": "https://biocache-ws.ala.org.au/ws",
                  *      "ws": "https://biocache.ala.org.au"
                  *  }
                  * - pageSize
@@ -403,7 +400,7 @@
                  * - query
                  *  {
                  *      "q": ["taxon_name:Macropus"],
-                 *      "bs": "https://biocache.ala.org.au/ws",
+                 *      "bs": "https://biocache-ws.ala.org.au/ws",
                  *      "ws": "https://biocache.ala.org.au"
                  *  }
                  *
@@ -430,7 +427,8 @@
                  */
                 facet: function (facet, query) {
                     return this.registerQuery(query).then(function (response) {
-                        return $http.get(query.bs + "/webportal/legend?cm=" + facet + "&q=" + response.qid + "&type=application/json", _httpDescription('facet')).then(function (response) {
+                        return $http.get(query.bs + "/webportal/legend?cm=" + facet + "&q=" + response.qid + "&type=application/json", _httpDescription('facet',
+                            {headers: {Accept: "application/json"}})).then(function (response) {
                             $.map(response.data, function (v, k) {
                                 v.displayname = Messages.get(facet + '.' + v.name, v.name ? v.name : "")
                             });
@@ -455,7 +453,7 @@
                  * - query
                  *  {
                  *      "q": ["taxon_name:Macropus"],
-                 *      "bs": "https://biocache.ala.org.au/ws",
+                 *      "bs": "https://biocache-ws.ala.org.au/ws",
                  *      "ws": "https://biocache.ala.org.au"
                  *  }
                  *
@@ -477,10 +475,11 @@
                          }]
                      }]
                  */
-                facetGeneral: function (facet, query, pageSize, offset, config) {
+                facetGeneral: function (facet, query, pageSize, offset, prefixFilter, config) {
                     return this.registerQuery(query).then(function (response) {
 
                         var url = query.bs + "/occurrence/facets?facets=" + facet + "&flimit=" + pageSize + "&foffset=" + offset + "&q=" + response.qid;
+                        if (prefixFilter !== undefined && prefixFilter.length > 0) url += "&fprefix=" + encodeURIComponent(prefixFilter);
 
                         return $http.get(url, _httpDescription('facetGeneral', config)).then(function (response) {
                             if (response.data && response.data[0] && response.data[0].fieldResult) {
@@ -527,7 +526,7 @@
                  * - query
                  *  {
                  *      "q": ["taxon_name:Macropus"],
-                 *      "bs": "https://biocache.ala.org.au/ws",
+                 *      "bs": "https://biocache-ws.ala.org.au/ws",
                  *      "ws": "https://biocache.ala.org.au"
                  *  }
                  *
@@ -553,14 +552,14 @@
                  * - query
                  *  {
                  *      "q": ["taxon_name:Macropus"],
-                 *      "bs": "https://biocache.ala.org.au/ws",
+                 *      "bs": "https://biocache-ws.ala.org.au/ws",
                  *      "ws": "https://biocache.ala.org.au"
                  *  }
                  *
                  * Output:
                  * {
                  *      "q": ["taxon_name:Macropus"],
-                 *      "bs": "https://biocache.ala.org.au/ws",
+                 *      "bs": "https://biocache-ws.ala.org.au/ws",
                  *      "ws": "https://biocache.ala.org.au",
                  *      "qid": 1234
                  *  }
@@ -569,7 +568,10 @@
                     if (query.qid) {
                         return $q.when(query)
                     } else {
-                        var q = query.q;
+                        if (!(query.q instanceof Array)) {
+                            query.q = [query.q]
+                        }
+                        var q = jQuery.extend([], query.q);
                         var fq;
                         if (query.q instanceof Array) {
                             q = query.q[0];
@@ -579,6 +581,7 @@
                             }
                         }
                         var data = {q: q, bs: query.bs};
+                        if ($SH.qc !== undefined && $SH.qc !== null && $SH.qc.length > 0) data.qc = $SH.qc;
                         if (fq !== undefined && fq !== null) data.fq = fq;
                         if (query.wkt !== undefined && query.wkt !== null && query.wkt.length > 0) data.wkt = query.wkt;
 
@@ -607,16 +610,18 @@
                  * @example
                  * Input:
                  * - bs
-                 *  "https://biocache.ala.org.au/ws"
+                 *  "https://biocache-ws.ala.org.au/ws"
                  * - q
                  *  ["taxon_name:Macropus"]
                  *
                  * Output:
                  * 1234
                  */
-                registerParam: function (bs, q, fq) {
+                registerParam: function (bs, q, fq, wkt) {
                     var data = {q: q, bs: bs};
+                    if ($SH.qc !== undefined && $SH.qc !== null && $SH.qc.length > 0) data.qc = $SH.qc;
                     if (fq !== undefined && fq !== null) data.fq = fq;
+                    if (wkt !== undefined && wkt !== null && wkt.length > 0) data.wkt = wkt;
                     return $http.post($SH.baseUrl + "/portal/q", data, _httpDescription('registerParam')).then(function (response) {
                         return response.data
                     });
@@ -637,7 +642,7 @@
                  * Output:
                  *  {
                  *      "q": ["taxon_name:Macropus"],
-                 *      "bs": "https://biocache.ala.org.au/ws",
+                 *      "bs": "https://biocache-ws.ala.org.au/ws",
                  *      "ws": "https://biocache.ala.org.au",
                  *      "name": ""
                  *  }
@@ -669,7 +674,7 @@
                  * Output:
                  *  {
                  *      "q": ["taxon_name:Macropus"],
-                 *      "bs": "https://biocache.ala.org.au/ws",
+                 *      "bs": "https://biocache-ws.ala.org.au/ws",
                  *      "ws": "https://biocache.ala.org.au",
                  *      "name": ""
                  *  }
@@ -718,7 +723,7 @@
                  * Output:
                  *  {
                  *      "q": ["taxon_name:Macropus"],
-                 *      "bs": "https://biocache.ala.org.au/ws",
+                 *      "bs": "https://biocache-ws.ala.org.au/ws",
                  *      "ws": "https://biocache.ala.org.au",
                  *      "name": ""
                  *  }
@@ -726,17 +731,17 @@
                 newLayerAddFq: function (query, newFq, newName) {
                     var fqs;
 
-                    if (query.q instanceof Array) fqs = angular.merge(query.q, []);
+                    if (query.q instanceof Array) fqs = $.merge([], query.q);
                     else fqs = [query.q];
 
                     if ((query.fq instanceof Array) && query.fq.length > 0) {
-                        fqs = angular.merge(fqs, query.fq)
+                        $.merge(fqs, query.fq)
                     }
 
                     if (newFq instanceof Array) {
-                        fqs = angular.merge(fqs, newFq)
+                        $.merge(fqs, newFq)
                     } else if (newFq !== undefined) {
-                        fqs = angular.merge(fqs, [newFq])
+                        $.merge(fqs, [newFq])
                     }
 
                     return this.registerLayer(query.bs, query.ws, fqs, query.wkt, newName)
@@ -754,7 +759,7 @@
                  * @example
                  * Input:
                  * - bs
-                 *  "https://biocache.ala.org.au/ws"
+                 *  "https://biocache-ws.ala.org.au/ws"
                  * - ws
                  *  "https://biocache.ala.org.au"
                  * - fq
@@ -763,7 +768,7 @@
                  * Output:
                  *  {
                  *      "q": ["taxon_name:Macropus"],
-                 *      "bs": "https://biocache.ala.org.au/ws",
+                 *      "bs": "https://biocache-ws.ala.org.au/ws",
                  *      "ws": "https://biocache.ala.org.au",
                  *      "name": ""
                  *  }
@@ -791,9 +796,11 @@
                             }
                         })
                     } else {
+                        var qc = [];
+                        if ($SH.qc !== undefined && $SH.qc != null && $SH.qc.length > 0) qc = [$SH.qc];
                         return $q.when({
                             q: q,
-                            fq: fq,
+                            fq: qc, //fq.length == 0 so it is safe to use qc here
                             wkt: wkt,
                             qid: q,
                             bs: bs,

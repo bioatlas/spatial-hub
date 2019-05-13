@@ -119,7 +119,7 @@ endpoints:
 security:
     cas:
         casServerName: 'https://auth.ala.org.au'
-        uriFilterPattern: '/portal.*,,/,/alaAdmin,/alaAdmin.*'
+        uriFilterPattern: '/portal.*,,/,/alaAdmin,/alaAdmin.*,/hub/[a-zA-Z0-9]+'
         uriExclusionFilterPattern: '/portal/messages.*,/portal/sessionCache.*,/static.*,/assets.*'
         authenticateOnlyIfLoggedInPattern: ''
         loginUrl: 'https://auth.ala.org.au/cas/login'
@@ -129,10 +129,10 @@ security:
         bypass: false # set to true for non-ALA deployment
         disableCAS: false
 
-        autocompleteUrl: 'https://bie.ala.org.au/ws/search/auto.jsonp'
+autocompleteUrl: 'https://bie.ala.org.au/ws/search/auto.jsonp'
         
-    auth:
-        admin_role: ROLE_ADMIN
+auth:
+    admin_role: ROLE_ADMIN
 
 app:
     http:
@@ -177,7 +177,7 @@ collections:
 
 sandbox:
     url: 'https://sandbox.ala.org.au/ala-hub'
-    uiUrl: 'https://sandbox.ala.org.au/datacheck'
+    uiUrl: 'https://sandbox.ala.org.au'
 
 sandboxService:
     url: 'https://sandbox.ala.org.au/biocache-service'
@@ -213,7 +213,9 @@ geoserver:
 flickr:
     url: 'https://api.flickr.com/services/rest/?method='
     searchPhotos: 'flickr.photos.search'
-    licensesInfo: 'flickr.photos.licenses.getInfo'
+    # licensesInfo: 'flickr.photos.licenses.getInfo'
+    # licenses data is found at https://api.flickr.com/services/rest/?method=flickr.photos.licenses.getInfo&api_key=<api_key>&format=json&nojsoncallback=1
+    licensesData: {"licenses":{"license":[{"id":"0","name":"All Rights Reserved","url":""},{"id":"4","name":"Attribution License","url":"https://creativecommons.org/licenses/by/2.0/"},{"id":"6","name":"Attribution-NoDerivs License","url":"https://creativecommons.org/licenses/by-nd/2.0/"},{"id":"3","name":"Attribution-NonCommercial-NoDerivs License","url":"https://creativecommons.org/licenses/by-nc-nd/2.0/"},{"id":"2","name":"Attribution-NonCommercial License","url":"https://creativecommons.org/licenses/by-nc/2.0/"},{"id":"1","name":"Attribution-NonCommercial-ShareAlike License","url":"https://creativecommons.org/licenses/by-nc-sa/2.0/"},{"id":"5","name":"Attribution-ShareAlike License","url":"https://creativecommons.org/licenses/by-sa/2.0/"},{"id":"7","name":"No known copyright restrictions","url":"https://www.flickr.com/commons/usage/"},{"id":"8","name":"United States Government Work","url":"http://www.usa.gov/copyright.shtml"},{"id":"9","name":"Public Domain Dedication (CC0)","url":"https://creativecommons.org/publicdomain/zero/1.0/"},{"id":"10","name":"Public Domain Mark","url":"https://creativecommons.org/publicdomain/mark/1.0/"}]},"stat":"ok"}
     apiKey: ''
     secret: ''
     tags: ''
@@ -232,8 +234,13 @@ sessions:
     dir: '/data/spatial-hub/sessions'
 
 admin_role: 'ROLE_ADMIN'
-    
+
+# When using skin.layout='portal' enable google analytics by setting the googleAnalyticsId
+googleAnalyticsId:
+
 skin:
+    header: true
+    footer: true
     fluidLayout: true
     layout: 'portal'
     orgNameLong: 'Atlas of Living Australia'
@@ -275,7 +282,7 @@ bccvl:
 keep:
     alive:
         timeout:
-            ms: 10000
+            ms: 180000
     
 startup:
     lat: -25
@@ -307,18 +314,18 @@ startup:
                 format: 'image/png'
                 continuousWorld: true
             exportType: 'outline'
-        osm_projection:
-            name: 'Open Street Map'
-            type: 'wms'
-            url: 'https://spatial.ala.org.au/geoserver/wms?'
-            layerParams:
-                # cascade WMS layer in geoserver
-                layers: 'ALA:osm'
-                format: 'image/png'
-                continuousWorld: true
-            exportType: 'minimal'
-            link: 'https://www.openstreetmap.org/about'
-            invalidProjections: ['3857']
+#        osm_projection:
+#            name: 'Open Street Map'
+#            type: 'wms'
+#            url: 'https://spatial.ala.org.au/geoserver/wms?'
+#            layerParams:
+#                # cascade WMS layer in geoserver
+#                layers: 'ALA:osm'
+#                format: 'image/png'
+#                continuousWorld: true
+#            exportType: 'minimal'
+#            link: 'https://www.openstreetmap.org/about'
+#            invalidProjections: ['3857']
         osm:
             name: 'Open Street Map'
             url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
@@ -330,7 +337,7 @@ startup:
             name: 'Satellite'
             layerType: 'SATELLITE'
             type: 'google'
-            exportType: 'normal'
+            exportType: 'satellite'
             link: 'https://www.google.com/intl/en_au/help/terms_maps.html'
             projections: ['3857']
 
@@ -354,7 +361,7 @@ presetWMSServers:
     - name: "GA"
       url: "http://www.ga.gov.au/gis/services/earth_science/GA_Surface_Geology_of_Australia/MapServer/WMSServer?request=GetCapabilities"
     - name: "Geofabric BOM"
-      url: "http://geofabric.bom.gov.au/simplefeatures/ows?request=getcapabilities"
+      url: "http://geofabric.bom.gov.au/simplefeatures/ows?service=WMS&request=GetCapabilities"
 
 allowProxy:
     server: 'data.auscover.org.au,data.auscover.org.au:80,geoserver.imos.org.au,www.ga.gov.au/gis,geofabric.bom.gov.au'
@@ -366,9 +373,11 @@ getMapExamples:
 wms:
     intersect: true
 
-
 fq:
     excludeAbsent: "-occurrence_status_s:absent"
+
+# fq applied to every biocache-service query
+qc: ""
 
 # (mandatory) projections.#.definition - usage new L.Proj.CRS(code, proj4js, params)
 # projections.#.definition.code = code
@@ -412,6 +421,40 @@ projections:
         longitude: 0
         zoom: 1
 
+#
+# spApp configuration
+#
+spApp:
+    # show "map options" and associated controls in the list of layers
+    mapOptions: true
+    # show map control for collapsing up and hiding the header
+    collapseUp: true
+    # show map control for collapsing left and hiding left panel
+    collapseLeft: true
+    # show map control that displays the cursor coordinates (on the lower left of the map, above the scale)
+    cursorCoordinates: true
+    # show map control that displays the quicklinks
+    quicklinks: true
+    # show "map options" button "Add WMS Layer"
+    optionsAddWms: true
+    # show "map options" button "Download Map"
+    optionsDownloadMap: true
+    # show "map options" button "Reset Map"
+    optionsResetMap: true
+    # show "map options" section to change the base map
+    optionsSelectBaseMap: true
+    # load the layerDistances data to display the layer selection list's traffic light indicator
+    layerDistances: true
+    # show the "add to map | area | google location search" option
+    googleLocation: true
+    # show the left panel by default
+    leftPanel: true
+
+#
+# portal.gsp layout options
+#
+#extraLinkUrl: "https://spatial-old.ala.org.au"
+#extraLinkText: "Old site"
 
 ---
 environments:

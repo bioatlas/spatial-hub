@@ -50,6 +50,10 @@
         "open": "tabulate"
       },
       {
+        "name": "Species by Layer",
+        "open": "SpeciesByLayer"
+      },
+      {
         "name": "Compare Points",
         "open": "pointComparison"
       },
@@ -82,10 +86,6 @@
         "open": "PhylogeneticDiversity"
       },
       {
-        "name": "GDM",
-        "open": "GDMStep1"
-      },
-      {
         "name": "Nearest Locality",
         "open": "nearestLocality"
       },
@@ -95,10 +95,6 @@
       {
         "name": "Restore Prior Analysis",
         "open": "analysis"
-      },
-      {
-        "name": "Taxon Frequency Graph",
-        "open": "TaxonFrequency"
       }
 
     ]

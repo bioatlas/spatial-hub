@@ -143,6 +143,12 @@
                         }
                     },
 
+                    setHighlightVisible: function (show) {
+                        this.leafletScope.showHighlight(show);
+                        $timeout(function () {
+                        }, 0)
+                    },
+
                     getExtents: function () {
                         if (this.leafletScope && this.leafletScope.bounds) {
                             return [
@@ -248,11 +254,38 @@
                                         name = item.scientific + " (" + name + ")"
                                     }
 
+                                    // map distributions fields to metadata object
+                                    var metadata = {};
+                                    if (Util.notEmpty(item.data_resource_uid)) metadata.dataResourceUid = $SH.collectionsUrl + "/public/show/" + item.data_resource_uid;
+                                    if (Util.notEmpty(item.scientific)) metadata.scientificName = item.scientific;
+                                    if (Util.notEmpty(item.authority_)) metadata.authority = item.authority_;
+                                    if (Util.notEmpty(item.common_nam)) metadata.commonName = item.common_nam;
+                                    if (Util.notEmpty(item.family)) metadata.family = item.family;
+                                    if (Util.notEmpty(item.genus_name)) metadata.genusName = item.genus_name;
+                                    if (Util.notEmpty(item.specific_n)) metadata.specificName = item.specific_n;
+                                    if (Util.notEmpty(item.min_depth)) metadata.minDepth = item.min_depth;
+                                    if (Util.notEmpty(item.max_depth)) metadata.maxDepth = item.max_depth;
+                                    if (Util.notEmpty(item.pelagic_fl)) metadata.isPelagic = item.pelagic_fl;
+                                    if (Util.notEmpty(item.estuarine_fl)) metadata.isEstuarine = item.estuarine_fl;
+                                    if (Util.notEmpty(item.coastal_fl)) metadata.isCoastal = item.coastal_fl;
+                                    if (Util.notEmpty(item.desmersal_fl)) metadata.isDesmersal = item.desmersal_fl;
+                                    if (Util.notEmpty(item.caab_species_number)) metadata.caabSpeciesNumber = item.caab_species_number;
+                                    if (Util.notEmpty(item.caab_family_number)) metadata.caabFamilyNumber = item.caab_family_number;
+                                    if (Util.notEmpty(item.area_name)) metadata.areaName = item.area_name;
+                                    if (Util.notEmpty(item.checklist_name)) metadata.checklistName = item.checklist_name;
+                                    if (Util.notEmpty(item.notes)) metadata.notes = item.notes;
+                                    if (Util.notEmpty(item.group_name)) metadata.groupName = item.group_name;
+                                    if (Util.notEmpty(item.genus_exemplar)) metadata.genusExemplar = item.genus_exemplar;
+                                    if (Util.notEmpty(item.family_exemplar)) metadata.familyExemplar = item.family_exemplar;
+                                    if (Util.notEmpty(item.endemic)) metadata.endemic = item.endemic;
+                                    if (Util.notEmpty(metadataUrl)) metadata.metadataUrl = metadataUrl;
+
                                     if (data[i].pid) {
-                                        data[i].metadataUrl = metadataUrl;
+                                        //data[i].metadataUrl = metadataUrl;
                                         data[i].name = name;
                                         data[i].geom_idx = item.geom_idx;
                                         data[i].query = query;
+                                        data[i].metadata = metadata;
 
                                         pidList.push(data[i]);
                                     } else {
@@ -285,6 +318,7 @@
                                 if (next.name) data.data.name = next.name;
                                 if (next.name) data.data.displayname = next.name;
                                 if (next.geom_idx) data.data.geom_idx = next.geom_idx;
+                                if (next.metadata) data.data.metadata = next.metadata;
 
                                 MapService.add(data.data);
 
@@ -302,12 +336,15 @@
                             MapService.add(id, {leaflet: template});
                             leafletLayers["highlight" + uid] = template;
                             uid = uid + 1;
+                            $timeout(function () {
+                                MapService.setHighlightVisible(true)
+                            })
                         }, 0);
                     },
 
                     removeHighlight: function () {
                         for (var name in leafletLayers) {
-                            if (name.match(/highlight.*/)) {
+                            if (name.match(/highlight.*/) != null) {
                                 delete leafletLayers[name];
                             }
                         }
@@ -349,7 +386,10 @@
                             id.colorType = '-1'
                         }
 
-                        id.facet = '-1';
+                        if (id.facet === undefined) {
+                            id.facet = '-1';
+                        }
+
                         id.facetList = {};
 
                         if (id.size === undefined) {
@@ -396,8 +436,24 @@
                                 }
                             };
 
+                            // do not add to log if it is a child layer or already logged
+                            if ((id.log === undefined || id.log) && parentLayer === undefined) {
+                                LoggerService.log('Map', 'WMS', {
+                                    url: id.url,
+                                    label: id.displayname,
+                                    legendurl: id.legendurl
+                                });
+                            }
+
                         } else if (id.q && id.layertype !== 'area') {
-                            LoggerService.log('AddToMap', 'Species', {qid: id.qid});
+                            // do not add to log if it is a child layer or already logged
+                            if ((id.log === undefined || id.log) && parentLayer === undefined) {
+                                LoggerService.log('Map', 'Species', {
+                                    qid: id.qid,
+                                    label: id.displayname,
+                                    species_list: id.species_list
+                                });
+                            }
 
                             id.layertype = 'species';
                             var env = 'colormode%3Agrid%3Bname%3Acircle%3Bsize%3A3%3Bopacity%3A1';
@@ -455,7 +511,7 @@
 
                             promises.push(BiocacheService.count(id).then(function (data) {
                                 id.count = data;
-                                if (id.count < 100000) {
+                                if (id.count < 100000 && id.fromSave === undefined) {
                                     id.colorType = '-1'
                                 }
                             }));
@@ -480,8 +536,6 @@
                                         }
                                     };
                                 } else {
-                                    LoggerService.log('AddToMap', 'Area', {pid: id.pid, geom_idx: id.geom_idx});
-
                                     //backup sld_body
                                     if (id && id.leaflet && id.leaflet.layerParams && id.leaflet.layerParams.sld_body) {
                                         sld_body = id.leaflet.layerParams.sld_body
@@ -512,6 +566,16 @@
                                         layertype: 'area',
                                         layerParams: layerParams
                                     };
+
+                                    // do not add to log if it is a child layer or already logged
+                                    if ((id.log === undefined || id.log) && parentLayer === undefined) {
+                                        LoggerService.log('Map', 'Area', {
+                                            pid: id.pid,
+                                            geom_idx: id.geom_idx,
+                                            label: id.displayname,
+                                            query: id.query
+                                        });
+                                    }
                                 }
 
                                 //restore sld_body
@@ -525,7 +589,10 @@
                                 if (id.displaypath !== undefined) layer = id;
                                 else layer = LayersService.getLayer(id.id);
 
-                                LoggerService.log('AddToMap', 'Layer', {id: id.id});
+                                // do not add to log if it is a child layer or already logged
+                                if ((id.log === undefined || id.log) && parentLayer === undefined) {
+                                    LoggerService.log('Map', 'Layer', {id: id.id, label: layer.layer.displayname});
+                                }
 
                                 if (layer.type !== 'e') {
                                     id.layertype = 'contextual';
@@ -569,6 +636,9 @@
                                 if (id.sldBody) {
                                     newLayer.layerParams.sld_body = id.sldBody
                                     newLayer.url = newLayer.url.replace("gwc/service/", "")
+                                } else if (id.sld_body) {
+                                    newLayer.layerParams.sld_body = id.sld_body
+                                    newLayer.url = newLayer.url.replace("gwc/service/", "")
                                 } else {
                                     //id.leaflet.layerParams.styles = layer.id
                                 }
@@ -585,44 +655,50 @@
                             }
                         }
 
-                        // add as a layer group
-                        var layerGroup = parentLeafletGroup || {
-                            type: 'group',
-                            visible: true,
-                            layerOptions: {
-                                layers: []
-                            },
-                            name: newLayer.name
-                        };
-
-                        layerGroup.layerOptions.layers.push(newLayer);
-
-                        if (!parentLeafletGroup) {
-                            id.leaflet = layerGroup;
-                            leafletLayers[id.uid] = layerGroup;
+                        if (id.leaflet !== undefined && id.fromSave !== undefined) {
+                            leafletLayers[id.uid] = id.leaflet;
                             $timeout(function () {
                             }, 0);
                         } else {
-                            leafletLayers[id.uid] = id.leaflet;
-                            delete leafletLayers[id.uid];
-                            $timeout(function () {
-                                leafletLayers[parentLayer.uid] = parentLayer.leaflet;
-                            }, 0);
-                        }
+                            // add as a layer group
+                            var layerGroup = parentLeafletGroup || {
+                                type: 'group',
+                                visible: true,
+                                layerOptions: {
+                                    layers: []
+                                },
+                                name: newLayer.name
+                            };
 
-                        if (id.q && id.layertype !== 'area') {
-                            promises.push(MapService.addOtherArea("distribution", id, id.area, id.includeExpertDistributions));
-                            promises.push(MapService.addOtherArea("track", id, id.area, id.includeAnimalMovement));
-                            promises.push(MapService.addOtherArea("checklist", id, id.area, id.includeChecklists));
+                            layerGroup.layerOptions.layers.push(newLayer);
 
-                        }
+                            if (!parentLeafletGroup) {
+                                id.leaflet = layerGroup;
+                                leafletLayers[id.uid] = layerGroup;
+                                $timeout(function () {
+                                }, 0);
+                            } else {
+                                leafletLayers[id.uid] = id.leaflet;
+                                delete leafletLayers[id.uid];
+                                $timeout(function () {
+                                    leafletLayers[parentLayer.uid] = parentLayer.leaflet;
+                                }, 0);
+                            }
 
-                        // do not select this layer if it is a child layer
-                        if (!parentLeafletGroup) {
-                            $timeout(function () {
-                                $rootScope.$broadcast('showLegend');
-                                MapService.select(id);
-                            }, 0);
+                            if (id.q && id.layertype !== 'area' && id.fromSave === undefined) {
+                                promises.push(MapService.addOtherArea("distribution", id, id.area, id.includeExpertDistributions));
+                                promises.push(MapService.addOtherArea("track", id, id.area, id.includeAnimalMovement));
+                                promises.push(MapService.addOtherArea("checklist", id, id.area, id.includeChecklists));
+
+                            }
+
+                            // do not select this layer if it is a child layer
+                            if (!parentLeafletGroup) {
+                                $timeout(function () {
+                                    $rootScope.$broadcast('showLegend');
+                                    MapService.select(id);
+                                }, 0);
+                            }
                         }
 
                         //add to promises if waiting is required
@@ -764,7 +840,7 @@
                         while (changed) {
                             changed = false;
                             for (var i = 0; i < this.mappedLayers.length; i++) {
-                                var formatted = idx === 0 ? name : name + ' (' + idx + ')';
+                                var formatted = idx === 0 ? name : name + '-' + idx;
                                 if (this.mappedLayers[i].name === formatted) {
                                     idx = idx + 1;
                                     changed = true;
@@ -772,7 +848,7 @@
                             }
                         }
 
-                        return idx === 0 ? name : name + ' (' + idx + ')';
+                        return idx === 0 ? name : name + '-' + idx;
                     }
                 };
 

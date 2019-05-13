@@ -55,22 +55,23 @@
                     saveValues: function () {
                         var top = layoutStack[layoutStack.length - 1];
 
-                        for (var k1 in top[1]) {
-                            if (k1[0] !== '$' && k1[0] !== '_' && top[1].hasOwnProperty(k1)) {
-                                var s = top[1][k1];
-                                for (var k2 in s) {
-                                    if (k2[0] !== '$' && k2[0] !== '_' && s.hasOwnProperty(k2)) {
-                                        if (!(s[k2] instanceof Function)) {
-                                            if (top[2][s.componentName] === undefined)
-                                                top[2][s.componentName] = {};
-                                            top[2][s.componentName][k2] = s[k2]
+                        if (top !== undefined) {
+                            for (var k1 in top[1]) {
+                                if (k1[0] !== '$' && k1[0] !== '_' && top[1].hasOwnProperty(k1)) {
+                                    var s = top[1][k1];
+                                    for (var k2 in s) {
+                                        if (k2[0] !== '$' && k2[0] !== '_' && s.hasOwnProperty(k2)) {
+                                            if (!(s[k2] instanceof Function)) {
+                                                if (top[2][s.componentName] === undefined)
+                                                    top[2][s.componentName] = {};
+                                                top[2][s.componentName][k2] = s[k2]
+                                            }
                                         }
                                     }
                                 }
                             }
+                            this.createCheckpoint();
                         }
-
-                        this.createCheckpoint();
                     },
                     /* Save the state of a controller. Call after initialising controller vars. */
                     addToSave: function (scopeToSave) {
@@ -302,7 +303,7 @@
                             this.openModal('speciesInfo', item, false)
                         } else if (item.layertype === 'area' && item.metadataUrl === undefined) {
                             var b = item.bbox;
-                            if ((item.bbox + '').match(/^POLYGON/g)) {
+                            if ((item.bbox + '').match(/^POLYGON/g) != null) {
                                 //convert POLYGON box to bounds
                                 var split = item.bbox.split(',');
                                 var p1 = split[1].split(' ');
@@ -313,18 +314,31 @@
                                 b = [[item.bbox[1], item.bbox[0]], [item.bbox[3], item.bbox[2]]]
                             }
 
+                            var metadata = "";
+                            if (item.metadata !== undefined) {
+                                for (var k in item.metadata) {
+                                    if (item.metadata.hasOwnProperty(k)) {
+                                        if (item.metadata[k].indexOf !== undefined && item.metadata[k].indexOf("http") == 0) {
+                                            metadata += "<tr><td>" + k + "</td><td><a target='_blank' href='" + item.metadata[k] + "'>" + item.metadata[k] + "</a></td></tr>"
+                                        } else {
+                                            metadata += "<tr><td>" + k + "</td><td>" + item.metadata[k] + "</td></tr>"
+                                        }
+                                    }
+                                }
+                            }
+
                             bootbox.alert("<b>Area</b><br/><br/>" +
                                 "<table class='table-striped table table-bordered'>" +
                                 "<tr><td style='width:100px'>" + $i18n("Name") + "</td><td>" + item.name + "</td></tr>" +
                                 "<tr><td>" + $i18n(347, "Description") + "</td><td>" + item.description + "</td></tr>" +
                                 "<tr><td>" + $i18n(348, "Area (sq km)") + "</td><td>" + item.area_km.toFixed(2) + "</td></tr>" +
                                 "<tr><td>" + $i18n(349, "Extents") + "</td><td>" + b[0][0] + " " + b[0][1] + ", " +
-                                b[1][0] + " " + b[1][1] + "</td></tr></table>")
+                                b[1][0] + " " + b[1][1] + "</td></tr>" + metadata + "</table>")
                         } else {
                             if (item.metadataUrl !== undefined) {
-                                LayoutService.openIframe(item.metadataUrl, '', '')
-                            } else {
-                                LayoutService.openIframe($SH.layersServiceUrl + '/layer/more/' + item.layerId, '', '')
+                                this.openIframe(item.metadataUrl, '', '')
+                            } else if (item.layerId) {
+                                this.openIframe($SH.layersServiceUrl + '/layer/more/' + item.layerId, '', '')
                             }
                         }
                     }

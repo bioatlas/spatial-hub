@@ -13,6 +13,8 @@
             function (LayoutService, $scope, MapService, $timeout, LayersService, $uibModalInstance, PredefinedAreasService, inputData) {
 
                 $scope.inputData = inputData;
+                $scope.gazField = $SH.gazField; // used by addAreaContent.tpl.htm
+                $scope.config = $SH.config; // used by addAreaContent.tpl.htm
 
                 $scope.step = 'default';
                 $scope.area = 'drawBoundingBox';
@@ -30,7 +32,7 @@
                     metadata: '',
                     wms: ''
                 };
-                $scope.locationRadius = 10;
+                $scope.radius = 10;
                 $scope.location = '';
                 $scope.areaname = '';
                 $scope.intersect = {};
@@ -42,8 +44,7 @@
 
                 $scope.circle = {
                     longitude: '',
-                    latitude: '',
-                    radius: '10'
+                    latitude: ''
                 };
 
                 $scope.myAreaName = $i18n(332, "new area");
@@ -69,9 +70,9 @@
                         } else if ($scope.area === 'addressRadius') {
                         } else if ($scope.area === 'pointRadius') {
                         } else if ($scope.area === 'gazetteer') {
-                        } else if ($scope.area.match(/^preset_/g)) {
+                        } else if ($scope.area.match(/^preset_/g) != null) {
                             for (var i = 0; i < $scope.defaultAreas.length; i++) {
-                                var v = $scope.defaultAreas[i].name.replace(' ', '_');
+                                var v = $scope.defaultAreas[i].name;
                                 if ($scope.area.indexOf(v) == $scope.area.length - v.length) {
                                     $scope.selectedArea.name = $scope.defaultAreas[i].name;
                                     $scope.selectedArea.wkt = $scope.defaultAreas[i].wkt;
@@ -102,7 +103,7 @@
                         } else if ($scope.area === 'pointRadius') {
                             $scope.createCircle()
                         } else if ($scope.area === 'gazetteer') {
-                        } else if ($scope.area.match(/^preset_/g)) {
+                        } else if ($scope.area.match(/^preset_/g) != null) {
                             //n/a
                         } else if ($scope.area === 'importShapefile') {
                             var featureIdxs = $scope.areaList.filter(function (area) {
@@ -141,8 +142,8 @@
                         if ($scope.isPoint()) {
                             //create circle
                             var coord = $scope.selectedArea.wkt.match(/\((.*)\)/)[1].split(" ");
-                            $scope.selectedArea.name += ' (' + $scope.locationRadius + 'km radius)';
-                            $scope.selectedArea.wkt = Util.createCircle(parseFloat(coord[0]), parseFloat(coord[1]), $scope.circle.radius * 1000)
+                            $scope.selectedArea.name += ' (' + $scope.radius + 'km radius)';
+                            $scope.selectedArea.wkt = Util.createCircle(parseFloat(coord[0]), parseFloat(coord[1]), $scope.radius * 1000)
                         }
                         if ($scope.selectedArea.wkt !== undefined && $scope.selectedArea.wkt.length > 0) {
                             if ($scope.selectedArea.area !== undefined && $scope.selectedArea.q !== undefined && $scope.selectedArea.q.length > 0) {
@@ -178,13 +179,13 @@
                 };
 
                 $scope.createCircle = function () {
-                    $scope.setWkt(Util.createCircle($scope.circle.longitude, $scope.circle.latitude, $scope.circle.radius * 1000))
+                    $scope.setWkt(Util.createCircle($scope.circle.longitude, $scope.circle.latitude, $scope.radius * 1000))
                 };
 
                 $scope.useAddress = function () {
                     var coords = $scope.location.split(',');
-                    $scope.selectedArea.name += ' (' + $scope.locationRadius + 'km radius)';
-                    $scope.setWkt(Util.createCircle(coords[1] * 1, coords[0] * 1, $scope.locationRadius * 1000))
+                    $scope.selectedArea.name += ' (' + $scope.radius + 'km radius)';
+                    $scope.setWkt(Util.createCircle(coords[1] * 1, coords[0] * 1, $scope.radius * 1000))
                 };
 
                 $scope.selectShpArea = function () {
@@ -258,11 +259,15 @@
                 };
 
                 $scope.showLocationRadius = function () {
-                    return $scope.selectedArea !== undefined && $scope.selectedArea.wkt !== undefined && $scope.selectedArea.wkt.match(/^POINT/);
+                    return $scope.selectedArea !== undefined && $scope.selectedArea.wkt !== undefined && $scope.selectedArea.wkt.match(/^POINT/) != null;
                 };
 
                 $scope.setWkt = function (wkt) {
                     $scope.selectedArea.wkt = wkt
+                };
+
+                $scope.selectArea = function (area) {
+                    $scope.area = area;
                 };
 
                 $scope.setPid = function (pid, mapNow) {
@@ -274,19 +279,23 @@
                         $scope.selectedArea.name = obj.name.length > 0 ? obj.name : $i18n(354, "area");
                         LayersService.getField(obj.fid, 0, 0, '').then(function (data) {
                             // only fetch wkt if it is not indexed in biocache
+                            $scope.selectedArea.pid = obj.pid;
+                            $scope.selectedArea.wms = obj.wmsurl;
+
                             if (data.data === undefined || data.data.id === undefined || !data.data.indb) {
                                 LayersService.getWkt(pid).then(function (wkt) {
                                     $scope.selectedArea.wkt = wkt.data
+                                    if (mapNow) {
+                                        $scope.addToMapAndClose();
+                                    }
                                 })
                             } else {
                                 $scope.selectedArea.q = obj.fid + ':"' + obj.name + '"';
                                 $scope.selectedArea.obj.q = $scope.selectedArea.q
-                            }
-                            $scope.selectedArea.pid = obj.pid;
-                            $scope.selectedArea.wms = obj.wmsurl;
 
-                            if (mapNow) {
-                                $scope.addToMapAndClose();
+                                if (mapNow) {
+                                    $scope.addToMapAndClose();
+                                }
                             }
                         })
                     })
@@ -300,7 +309,7 @@
                         return $scope.circle.longitude.length === 0 || $scope.circle.latitude.length === 0
                     } else if ($scope.area === 'gazetteer') {
                         return $scope.selectedArea.pid === undefined
-                    } else if ($scope.area.match(/^preset_/g)) {
+                    } else if ($scope.area.match(/^preset_/g) != null) {
                     } else if ($scope.area === 'importShapefile' || $scope.area === 'importKML') {
                         if ($scope.areaList) {
                             return $scope.areaList.filter(function (area) {

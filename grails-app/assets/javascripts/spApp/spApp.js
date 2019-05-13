@@ -1,5 +1,4 @@
-//sandbox config if not defined
-if (SANDBOX_CONFIG === undefined) {
+if (this.SANDBOX_CONFIG === undefined) {
 
     SANDBOX_CONFIG = {
         autocompleteColumnHeadersUrl: $SH.sandboxUiUrl + '/dataCheck/autocomplete',
@@ -21,6 +20,21 @@ if (SANDBOX_CONFIG === undefined) {
         roles: ["ROLE_ADMIN", "ROLE_API_EDITOR", "ROLE_APPD_USER", "ROLE_BASE", "ROLE_FC_ADMIN", "ROLE_FC_OFFICER", "ROLE_SDS_NSW", "ROLE_SDS_SA", "ROLE_SDS_VIC", "ROLE_SDS_WA", "ROLE_SPATIAL_ADMIN", "ROLE_SYSTEM_ADMIN", "ROLE_USER"]
     };
 }
+
+// set $SH.config defaults
+if (!$SH.config) $SH.config = {};
+if ($SH.config.mapOptions === undefined) $SH.config.mapOptions = true;
+if ($SH.config.collapseUp === undefined) $SH.config.collapseUp = true;
+if ($SH.config.collapseLeft === undefined) $SH.config.collapseLeft = true;
+if ($SH.config.cursorCoordinates === undefined) $SH.config.cursorCoordinates = true;
+if ($SH.config.quicklinks === undefined) $SH.config.quicklinks = true;
+if ($SH.config.optionsAddWms === undefined) $SH.config.optionsAddWms = true;
+if ($SH.config.optionsDownloadMap === undefined) $SH.config.optionsDownloadMap = true;
+if ($SH.config.optionsResetMap === undefined) $SH.config.optionsResetMap = true;
+if ($SH.config.optionsSelectBaseMap === undefined) $SH.config.optionsSelectBaseMap = true;
+if ($SH.config.layerDistances === undefined) $SH.config.layerDistances = true;
+if ($SH.config.googleLocation === undefined) $SH.config.googleLocation = true;
+if ($SH.config.leftPanel === undefined) $SH.config.leftPanel = true;
 
 var spApp = angular.module('spApp', ['leaflet-directive', 'ngAnimate', 'ui.bootstrap', 'ui.sortable', 'ui.slider',
     'ngRoute', 'ngAnimate', 'chieffancypants.loadingBar', 'ngFileUpload', 'ngTouch', 'ala.sandbox.components',
@@ -49,7 +63,7 @@ spApp.config(['$locationProvider', function ($locationProvider) {
 }]);
 
 spApp.config(['$logProvider', function ($logProvider) {
-    //$logProvider.debugEnabled(false);
+    $logProvider.debugEnabled(false);
 }]);
 
 spApp.config(['$httpProvider', function ($httpProvider) {
@@ -147,11 +161,17 @@ function fetchData() {
 
     var distancesUrl = $SH.layersServiceUrl + "/layerDistances/layerdistancesJSON";
 
-    $http.get(distancesUrl, _httpDescription('getLayerDistances')).then(function (response) {
-        $.map(response.data, function (v, k) {
-            gLayerDistances[k] = v
+    if ($SH.config.layerDistances) {
+        $http.get(distancesUrl, _httpDescription('getLayerDistances')).then(function (response) {
+            if (response.data && response.data.length > 0){
+                $.map(response.data, function (v, k) {
+                    gLayerDistances[k] = v
+                });
+            } else {
+                gLayerDistances = {}
+            }
         });
-    });
+    }
 
     promises.push($http.get($SH.baseUrl + "/portal/i18n?lang=" + $SH.i18n, _httpDescription('geti18n')).then(function (result) {
         for (k in result.data) {
@@ -168,7 +188,7 @@ function fetchData() {
         }
     }));
 
-    promises.push($http.get($SH.baseUrl + '/portal/config/view', _httpDescription('getViewConfig')).then(function (data) {
+    promises.push($http.get($SH.baseUrl + '/portal/config/view&hub=' + $SH.hub, _httpDescription('getViewConfig')).then(function (data) {
         $SH.viewConfig = data.data;
         var url = $SH.layersServiceUrl + '/capabilities';
         return $http.get(url, _httpDescription('getLayersCapabilities')).then(function (data) {
@@ -212,7 +232,7 @@ spApp.config(['$provide', function ($provide) {
     //inject 'componentName' into directive scopes for use by LayoutService
     $.each(spApp.requires, function (x) {
         var v = spApp.requires[x];
-        if (v.match(/-directive$/g) && v != 'i18n-directive') {
+        if (v.match(/-directive$/g) != null && v != 'i18n-directive') {
             $provide.decorator($.camelCase(v), ['$delegate', 'LayoutService', function ($delegate, LayoutService) {
                 var directive = $delegate[0];
 
@@ -251,7 +271,10 @@ function bootstrapApplication() {
 
 $spBootstrapState = false;
 $spMapLoadedState = false;
-$spMapLoaded = function () {
+$spPanelsResized = false;
+$resetMap = undefined;
+$spMapLoaded = function (resetMap) {
+    $resetMap = resetMap;
     $spMapLoadedState = true;
     setTimeout($spPageLoadingHide, 0);
 };
@@ -261,22 +284,15 @@ $spBootstrapReady = function () {
     setTimeout(initLayoutContainer, 2000);
 };
 $spPageLoadingHide = function () {
-    if ($spMapLoadedState && $spBootstrapState) {
+    if ($spMapLoadedState && $spBootstrapState && $spPanelsResized) {
+        $resetMap();
+
         //$(".page-loading").fadeOut(0)
-        $(".page-loading").detach()
+        $(".page-loading").detach();
 
         if (!isBrowserSupported()) {
             $('#browser-supported-message').removeClass('hide');
         }
-    }
-};
-
-$spNc = function (obj, args, deflt, pos) {
-    if (obj != null && obj != undefined) {
-        if (pos != undefined) pos = 0;
-        return $spNc(obj[args[pos]], args, deflt, pos + 1)
-    } else {
-        return deflt
     }
 };
 
@@ -297,6 +313,14 @@ resizeSouth = function (a, b, c) {
 };
 
 initLayoutContainer = function () {
+    if (!$SH.config.leftPanel) {
+        $('#right-panel')[0].style.marginLeft = "0px";
+        $('#left-panel')[0].style.marginLeft = "-420px";
+    } else {
+        $('#right-panel')[0].style.marginLeft = "420px";
+        $('#left-panel')[0].style.marginLeft = "0px";
+    }
+
     $(window).on("resize", function () {
         if ($('.ui-layout-container')[0]) {
             $SH.defaultPaneResizer = $('.ui-layout-container').layout({
@@ -342,13 +366,40 @@ initLayoutContainer = function () {
 
         $('#left-panel')[0].style.maxHeight = $('#map').height() + "px";
 
+        if (!$spPanelsResized) {
+            $spPanelsResized = true;
+            setTimeout($spPageLoadingHide, 0);
+        }
     }).trigger("resize");
 };
 
-L.Icon.Default.imagePath = 'assets/leaflet/dist/images';
+L.Icon.Default.imagePath = $SH.baseUrl + '/assets/leaflet/dist/images';
 
 jQuery.ui.autocomplete.prototype._resizeMenu = function () {
     var ul = this.menu.element;
     ul.outerWidth(this.element.outerWidth());
 };
 
+var authWorkaround = function (url) {
+    if (url) {
+        $("body").append('<div style="display:none"><iframe src="' + url + '"></iframe></div>')
+    }
+};
+
+// This is to fix auth issues with ajax calls to other ala applications
+if ($SH.biocollectUrl) {
+    authWorkaround($SH.biocollectUrl);
+}
+
+// // Override Leaflet to fix map locking up when using different EPSGs
+L.oldLatLng = L.LatLng;
+L.LatLng = function (lat, lng, alt) { // (Number, Number, Number)
+    this.lat = parseFloat(lat);
+    this.lng = parseFloat(lng);
+
+    if (alt !== undefined) {
+        L.noConflict.alt = parseFloat(alt);
+    }
+};
+L.extend(L.LatLng, L.oldLatLng);
+L.LatLng.prototype = L.oldLatLng.prototype;

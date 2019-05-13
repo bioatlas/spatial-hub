@@ -123,7 +123,7 @@
 
                 $scope.zoom = function (bounds) {
                     var b = bounds;
-                    if ((bounds + '').match(/^POLYGON/g)) {
+                    if ((bounds + '').match(/^POLYGON/g) != null) {
                         //convert POLYGON box to bounds
                         var split = bounds.split(',');
                         var p1 = split[1].split(' ');
@@ -140,15 +140,13 @@
 
                 $scope.zoomToPoint = function (latlng, level) {
                     leafletData.getMap().then(function (map) {
+                        map.invalidateSize();
                         map.setView(latlng, level)
                     });
                 };
 
                 $scope.resetZoom = function () {
-                    leafletData.getMap().then(function (map) {
-                        map.panTo(L.latLng(-25, 132));
-                        map.setZoom(4)
-                    });
+                    $scope.zoomToPoint(L.latLng($SH.defaultLat, $SH.defaultLng), $SH.defaultZoom);
                 };
 
                 $scope.showLayer = function (layerIn, show) {
@@ -181,6 +179,45 @@
                                     }
                                     pos = pos + 1;
                                 }
+                            }
+                        })
+                    })
+                };
+
+                $scope.showHighlight = function (show) {
+                    leafletData.getMap().then(function (map) {
+                        leafletData.getLayers().then(function (leafletLayers) {
+                            var ly;
+                            for (var k in $scope.layers.overlays) {
+                                if ($scope.layers.overlays.hasOwnProperty(k)) {
+                                    if (k.match(/highlight.*/) != null) {
+                                        ly = leafletLayers.overlays[k];
+                                        $scope.layers.overlays[k].visible = show;
+                                        break;
+                                    }
+                                }
+                            }
+                            if (map.hasLayer(ly)) {
+                                // all layers are groups
+                                // when more than one layer in the group, the first is always visible=false
+                                var pos = 0;
+                                var len = 0;
+                                var i;
+                                for (i in ly._layers) {
+                                    len = len + 1;
+                                }
+                                for (i in ly._layers) {
+                                    var layer = ly._layers[i];
+                                    if (pos === 0 && len > 1) {
+                                        layer.visible = false
+                                    } else {
+                                        layer.visible = show
+                                    }
+                                    pos = pos + 1;
+                                }
+
+                                $timeout(function () {
+                                }, 0)
                             }
                         })
                     })
@@ -236,16 +273,14 @@
                 }, true);
 
                 $scope.toggleExpandLeft = function (context) {
-                    if ($("#right-panel")[0].style.marginLeft == "0px") {
-                        $("#left-panel")[0].style.marginLeft = "0px";
-                        $("#right-panel")[0].style.marginLeft = "420px";
-                    } else {
+                    if ($("#right-panel")[0].style.marginLeft == "420px") {
                         $("#left-panel")[0].style.marginLeft = "-420px";
                         $("#right-panel")[0].style.marginLeft = "0px";
+                    } else {
+                        $("#left-panel")[0].style.marginLeft = "0px";
+                        $("#right-panel")[0].style.marginLeft = "420px";
                     }
-                    ;
-                    $(window).trigger('resize');
-                    context.invalidateSize()
+                    $scope.invalidate();
                 };
 
                 $scope.toggleExpandUp = function (context) {
@@ -260,14 +295,12 @@
                         $(".navbar-default").hide();
                     }
 
-                    //
-                    $(window).trigger('resize');
-                    context.invalidateSize()
+                    $scope.invalidate();
                 };
 
-                $scope.togglePanoramio = function (context) {
-                    if (context.panoramioControl._panoramio_state) {
-                        $scope.addPanoramioToMap();
+                $scope.toggleImages = function (context) {
+                    if (context.imagesControl._images_state) {
+                        $scope.addImagesToMap();
                     }
                     else {
                         $scope.deleteImages();
@@ -283,7 +316,7 @@
                     }
                 };
 
-                $scope.addPanoramioToMap = function () {
+                $scope.addImagesToMap = function () {
                     leafletData.getMap().then(function (map) {
                         var promises = [];
 
@@ -297,15 +330,16 @@
                         // so we config total number of photos to display at one time ourselves
                         var nbrOfPhotosToDisplay = Math.round($SH.flickrNbrOfPhotosToDisplay / multipBounds.length);
                         for (var i = 0; i < multipBounds.length; i++) {
-                            $(".icon-panoramio").addClass("icon-spin-panoramio");
+                            $(".icon-images").addClass("icon-spin-images");
                             promises.push(FlickrService.getPhotos(multipBounds[i]).then(function (data) {
                                 if (data.photos) {
-                                    for (var i = 0; i < nbrOfPhotosToDisplay; i++) {
+                                    for (var i = 0; i < data.photos.photo.length; i++) {
                                         var photoContent = data.photos.photo[i];
+                                        photoContent.url_m = "https://www.flickr.com/photos/" + photoContent.owner + "/" + photoContent.id
                                         newMarkers[photoContent.id] = photoContent;
                                     }
                                 }
-                                $(".icon-panoramio").removeClass("icon-spin-panoramio");
+                                $(".icon-images").removeClass("icon-spin-images");
                             }));
                         }
 
@@ -363,7 +397,7 @@
                         result += "<div class='panel-body'> ";
                         result += "<div class='row'> <div class='col-sm-12'>";
                         result += "<a href='" + photo.url_m + "' target='_blank'>";
-                        result += "<img class='img-thumbnail' style='display: block; margin: 0 auto;width:250px' src='" + photo.url_s + "' alt='Click to view large image'></a>";
+                        result += "<img class='img-thumbnail' src='" + photo.url_s + "' alt='Click to view large image'></a>";
                         result += "</div> </div>";
 
                         result += "<div class='row'> <div class='col-sm-12'>";
@@ -400,12 +434,9 @@
                             // draw new markers
                             Object.keys(newMarkers).forEach(function (key) {
                                 var photoContent = newMarkers[key];
-                                var photoIcon = L.icon(
-                                    {
-                                        iconUrl: photoContent.url_t,
-                                        iconSize: [20, 20]
-                                    }  //reduces thumbnails 50%
-                                );
+                                var photoIcon = L.divIcon({
+                                    html: "<img class='map-icon' src='" + photoContent.url_t + "'></img>"
+                                });
                                 var marker = L.marker([photoContent.latitude, photoContent.longitude], {icon: photoIcon});
                                 marker.uniqueId = key;
                                 var license = $scope.licenses[photoContent.license];
@@ -576,9 +607,7 @@
                 };
 
                 $scope.getLicenses = function () {
-                    FlickrService.getLicenses().then(function (data) {
-                        $scope.licenses = data
-                    });
+                    $scope.licenses = FlickrService.getLicenses();
                 };
 
                 $scope.setupTriggers = function () {
@@ -591,22 +620,26 @@
 
                             L.control.scale({position: 'bottomright'}).addTo(map);
 
-                            new L.Control.InfoPanel({
-                                data: []
-                            }).addTo(map);
+                            if ($SH.config.cursorCoordinates) {
+                                new L.Control.InfoPanel({
+                                    data: []
+                                }).addTo(map);
+                            }
 
                             new L.Control.FullScreen({
                                 data: []
                             }).addTo(map);
 
-                            new L.Control.Expand({
-                                toggleExpandUp: $scope.toggleExpandUp,
-                                toggleExpandLeft: $scope.toggleExpandLeft
-                            }).addTo(map);
+                            if ($SH.config.collapseUp || $SH.config.collapseLeft) {
+                                new L.Control.Expand({
+                                    toggleExpandUp: $scope.toggleExpandUp,
+                                    toggleExpandLeft: $scope.toggleExpandLeft
+                                }).addTo(map);
+                            }
 
                             if ($SH.flickrUrl) {
-                                new L.Control.Panoramio({
-                                    togglePanoramio: $scope.togglePanoramio
+                                new L.Control.Images({
+                                    toggleImages: $scope.toggleImages
                                 }).addTo(map);
                             }
 
@@ -646,19 +679,19 @@
                             });
 
                             map.on('moveend', function (e) {
-                                if (e.target.panoramioControl._panoramio_state) {
-                                    $scope.addPanoramioToMap();
+                                if (e.target.imagesControl && e.target.imagesControl._images_state) {
+                                    $scope.addImagesToMap();
                                 }
-                                if (e.target.poiControl._poi_state) {
+                                if (e.target.poiControl && e.target.poiControl._poi_state) {
                                     $scope.addPoiToMap();
                                 }
                             });
 
                             map.on('zoomend', function (e) {
-                                if (e.target.panoramioControl._panoramio_state) {
-                                    $scope.addPanoramioToMap();
+                                if (e.target.imagesControl && e.target.imagesControl._images_state) {
+                                    $scope.addImagesToMap();
                                 }
-                                if (e.target.poiControl._poi_state) {
+                                if (e.target.poiControl && e.target.poiControl._poi_state) {
                                     $scope.addPoiToMap();
                                 }
                             });
@@ -670,7 +703,7 @@
 
                             //all setup finished
                             if ($spMapLoaded !== undefined) {
-                                $spMapLoaded();
+                                $spMapLoaded($scope.resetZoom);
                             }
                         })
                     });
@@ -687,7 +720,6 @@
                         }
                     }
 
-                    $scope.invalidate();
                     $timeout(function () {
                         $scope.setupTriggers();
                         $scope.getLicenses();
