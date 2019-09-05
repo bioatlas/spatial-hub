@@ -41,11 +41,11 @@ div#statusInfo {
 .layer-selected {
     background-color: lightgray;
 }
-
+/*
 .footer-container {
     display: inline-block;
 }
-
+*/
 .collapse.in, .collapsing, .header-collapse {
     height: 340px;
     overflow-y: scroll;
@@ -447,7 +447,7 @@ ol.leaflet-quick-links li {
 }
 
 /*.navbar-collapse.collapse { display: none !important; }*/
-.navbar-collapse.in, .navbar-toggle { display: block !important; }
+/*.navbar-collapse.in, .navbar-toggle { display: block !important; }*/
 
 .progress {
     height: 22px;
