@@ -1,3 +1,4 @@
+
 buildscript {
     repositories {
         mavenLocal()
@@ -16,7 +17,7 @@ plugins {
     id 'com.bertramlabs.asset-pipeline' version '2.5.0'
 }
 
-version "0.3.1-SNAPSHOT"
+version "0.4"
 group "au.org.ala"
 
 apply plugin:"eclipse"
@@ -34,12 +35,33 @@ targetCompatibility = 1.8
 
 repositories {
     mavenLocal()
+    mavenCentral()
     maven { url "https://nexus.ala.org.au/content/groups/public/" }
     maven { url "https://repo.grails.org/grails/core" }
+    maven { url 'https://jitpack.io' }
+}
+
+ext {
+    drivers = ["firefox", "chrome", "chromeHeadless", "ie"]
+    ext {
+        groovyVersion = '2.4.10'
+        gebVersion = '2.0'
+        seleniumVersion = '3.6.0'
+        chromeDriverVersion = '2.36'
+        geckoDriverVersion = '0.18.0'
+        ieDriverVersion = '3.8.0'
+    }
+}
+
+configurations {
+    all {
+        exclude group: 'org.springframework.boot', module: 'spring-boot-starter-logging'
+        exclude group: 'ch.qos.logback', module: 'logback-classic'
+        exclude group: 'ch.qos.logback', module: 'logback-core'
+    }
 }
 
 dependencies {
-    compile "org.springframework.boot:spring-boot-starter-logging"
     compile "org.springframework.boot:spring-boot-autoconfigure"
     compile "org.grails:grails-core"
     compile "org.springframework.boot:spring-boot-starter-actuator"
@@ -62,20 +84,33 @@ dependencies {
     console "org.grails:grails-console"
     profile "org.grails.profiles:web"
 
+    testCompile "org.gebish:geb-spock:$gebVersion"
+    testCompile("org.spockframework:spock-core:1.3-groovy-2.4") {
+        exclude group: "org.codehaus.groovy"
+    }
+    testCompile "org.codehaus.groovy:groovy-all:$groovyVersion"
+    testCompile "org.gebish:geb-junit4:$gebVersion"
+
+    testRuntime 'net.sourceforge.htmlunit:htmlunit:2.35.0'
+    testCompile "org.seleniumhq.selenium:htmlunit-driver:2.35.1"
+    testCompile "org.seleniumhq.selenium:selenium-remote-driver:3.141.59"
+    testCompile "org.seleniumhq.selenium:selenium-api:3.141.59"
+    testCompile "org.seleniumhq.selenium:selenium-support:3.141.59"
+    testRuntime "org.seleniumhq.selenium:selenium-chrome-driver:3.141.59"
+    testRuntime "org.seleniumhq.selenium:selenium-firefox-driver:3.141.59"
+
     testCompile "org.grails:grails-gorm-testing-support"
-    testCompile "org.grails.plugins:geb"
     testCompile "org.grails:grails-web-testing-support"
-    testRuntime "org.seleniumhq.selenium:selenium-htmlunit-driver:2.47.1"
-    testRuntime "net.sourceforge.htmlunit:htmlunit:2.18"
+    //testRuntime "net.sourceforge.htmlunit:htmlunit:2.18"
 
     // Additional Plugins
     compile 'org.grails.plugins:external-config:1.2.2'
     compile group: 'commons-httpclient', name: 'commons-httpclient', version: '3.1'
 
-//    compile 'au.org.ala:ala-cas-client:2.2.1-SNAPSHOT'
+    compile "org.grails.plugins:ala-auth:3.1.3"
     compile "org.grails.plugins:ala-admin-plugin:2.1"
-    compile "org.grails.plugins:ala-auth:3.1.0"
-    compile "org.grails.plugins:ala-bootstrap3:3.0.6"
+    compile "org.grails.plugins:ala-bootstrap3:3.2.3"
+    compile "au.org.ala.plugins.grails:ala-charts-plugin:2.0.2-SNAPSHOT"
 
     runtime 'org.grails.plugins:sandbox-hub:1.0'
 
@@ -88,10 +123,27 @@ dependencies {
     assets 'com.craigburke.angular:angular-annotate-asset-pipeline:2.4.1'
     assets "com.craigburke.angular:angular-template-asset-pipeline:2.4.0"
 
-    compile 'com.github.ziplet:ziplet:2.0.0'
+    compile('com.github.ziplet:ziplet:2.0.0') {
+        exclude group: 'org.slf4j', module: 'slf4j-nop'
+    }
 
     compile 'org.springframework.boot:spring-boot-starter-redis:1.4.6.RELEASE'
     compile 'org.springframework.session:spring-session:1.3.5.RELEASE'
+}
+
+// Set to true it needed only for development
+boolean inplace = false
+
+
+if (inplace) {
+    grails {
+        exploded = true
+        plugins {
+            compile (project(':ala-charts-plugin')) {
+                exclude group: 'org.grails', module: 'grails-plugin-converters'
+            }
+        }
+    }
 }
 
 task _Events {
@@ -100,10 +152,12 @@ task _Events {
     }
 }
 
+//compileTestGroovy.enabled = false
+
 // the tasks used here for dependsOn may be incomplete/incorrect
 assetCompile.dependsOn(_Events)
 compileGroovy.dependsOn(_Events)
-//bootRun.dependsOn(_Events)
+bootRun.dependsOn(_Events)
 
 bootRun {
     jvmArgs('-Dspring.output.ansi.enabled=always', '-Xmx4G')

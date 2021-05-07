@@ -78,17 +78,27 @@ class HubWebService {
 
         try {
             if (type == HttpPost.METHOD_NAME) {
-                call = new PostMethod()
+                call = new PostMethod(url)
                 if (inputStream) {
                     call.setRequestEntity(new InputStreamRequestEntity(inputStream))
                 }
             } else {
                 //GET
-                call = new GetMethod()
+                call = new GetMethod(url)
             }
             if (contentType) {
                 call.setRequestHeader(HttpHeaders.CONTENT_TYPE, contentType)
             }
+            //Todo Test of supporting UserPrincipal
+            def user = authService.userId
+            if (user) {
+                call.addRequestHeader((String) grailsApplication.config.app.http.header.userId, user)
+                call.addRequestHeader("apiKey", (String) grailsApplication.config.api_key)
+                call.addRequestHeader(HttpHeaders.COOKIE, 'ALA-Auth=' +
+                        URLEncoder.encode(authService.userDetails().email,
+                                (String) grailsApplication.config.character.encoding))
+            }
+
             client.executeMethod(call)
         } catch (IOException e) {
             log.error url, e
@@ -135,14 +145,20 @@ class HubWebService {
 
                     if (nameValues) {
                         nameValues.each { k, v ->
-                            if (v instanceof List) {
-                                v.each { i ->
-                                    ((PostMethod) call).addParameter(String.valueOf(k), String.valueOf(i))
+                            String key = String.valueOf(k)
+                            String value = String.valueOf(v)
+                            if (key != null && value != null) {
+                                if (v instanceof List) {
+                                    v.each { i ->
+                                        String item = String.valueOf(i)
+                                        if (item) {
+                                            ((PostMethod) call).addParameter(key, item)
+                                        }
+                                    }
+                                } else {
+                                    ((PostMethod) call).addParameter(key, value)
                                 }
-                            } else {
-                                ((PostMethod) call).addParameter(String.valueOf(k), String.valueOf(v))
                             }
-
                         }
                     }
                 }

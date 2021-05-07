@@ -6,8 +6,8 @@
                 <div i18n="156">Nearest locality</div>
             </h3>
         </div>
-        <div class="panel-body" style="overflow-y:scroll;">
-            <div class="alert alert-ala-success" role="alert">
+        <div class="panel-body" style="overflow-y:auto;">
+            <div class="alert alert-ala-success alert-success" role="alert">
                 <div class="container">
                     <p style="display:inline;" ng-show="pointLabel.length > 0"><strong>{{pointLabel}}</strong></p>
                     <div class="btn-group btn-group-sm" style="float:right" ng-show="points.length > 0">
@@ -15,7 +15,7 @@
                                 ng-disabled="selectedArea.wkt.length == 0 && points.length > 0">Edit location
                         </button>
                         <br/>
-                        <button class="btn btn-default" ng-click="zoom()"
+                        <button i18n="518" class="btn btn-default" ng-click="zoom()"
                                 ng-disabled="selectedArea.wkt.length == 0">Zoom to Localities
                         </button>
                     </div>

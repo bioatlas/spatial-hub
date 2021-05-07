@@ -33,6 +33,7 @@
 <g:set var="fluidLayout" value="${pageProperty(name: 'meta.fluidLayout') ?: config.skin?.fluidLayout}"/>
 
 <!-- Banner -->
+<ala:systemMessage/>
 <g:if test="${config.header}">
     <hf:banner/>
 </g:if>
@@ -50,6 +51,7 @@
 <!-- End footer -->
 
 <!-- JS resources-->
+<asset:javascript src="generic.js"/>
 <asset:deferredScripts />
 
 </body>

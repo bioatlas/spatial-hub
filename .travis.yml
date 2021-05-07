@@ -2,6 +2,10 @@ language: groovy
 jdk:
 - openjdk8
 sudo: false
+branches:
+  only:
+  - master
+  - develop
 addons:
   apt:
     packages:

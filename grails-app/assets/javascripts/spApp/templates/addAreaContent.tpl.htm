@@ -37,6 +37,10 @@
                                                                     ng-change="selectArea('pointOnLayer')"
                                                                     value="pointOnLayer"><span i18n="8">Select area from polygonal layer</span></label>
                                 </div>
+                                <div class="checkbox"><label><input type="radio" ng-model="area" name="addArea_area"
+                                                                    ng-change="selectArea('drawPolyline')"
+                                                                    value="drawPolyline"><span i18n="494">Draw polyline with buffer</span></label>
+                                </div>
                             </div>
 
                             <div ng-show="!inputData.importArea" class="area-types">
@@ -82,7 +86,7 @@
                                     Shapefile</label></div>
                                 <div class="well-lg" ng-show="fileName.length > 0 && area == 'importShapefile'"
                                      style="">
-                                    <div class="alert alert-ala-success"><p><span
+                                    <div class="alert alert-ala-success alert-success"><p><span
                                             i18n="19">Imported shapefile:&nbsp;</span>{{
                                         fileName }}</p></div>
                                 </div>
@@ -92,7 +96,7 @@
                                                                     ng-disabled="isNotLoggedIn || selectionDone">Import
                                     KML</label></div>
                                 <div class="well-lg" ng-show="fileName.length > 0 && area == 'importKML'">
-                                    <div class="alert alert-ala-success"><p><span
+                                    <div class="alert alert-ala-success alert-success"><p><span
                                             i18n="21">"Imported KML file:&nbsp;</span>{{
                                         fileName }}</p></div>
                                 </div>
@@ -139,7 +143,7 @@
                 <div class="panel panel-default" ng-show="step == 'pointRadius'">
                     <div class="panel-default">
                         <div class="panel-heading">
-                            <h3 i18n="26" class="panel-title">Search for an address<.</h3>
+                            <h3 i18n="11" class="panel-title">Area from point and radius</h3>
                         </div>
 
                         <div class="panel-body">
@@ -208,7 +212,7 @@
                                         <div class="col-lg-6">
                                             <p i18n="35">Areas for merging</p>
                                             <table class="table table-striped panel panel-default"
-                                                   style="height:400px;overflow:scroll;display:block">
+                                                   style="height:400px;overflow:auto;display:block">
                                                 <thead>
                                                 <tr>
                                                     <th align="center"><input type="checkbox"
@@ -231,6 +235,7 @@
                                                 </tr>
                                                 </tbody>
                                             </table>
+                                            <div ng-if="selectedAreaSize>0">Total areas of selected: {{selectedAreaSize | number}}</div>
                                         </div>
                                         <div class="col-lg-6" style="height:400px">
                                             <p i18n="36">Preview</p>
@@ -247,7 +252,9 @@
                                 <div class="btn-group btn-group-sm">
                                     <button i18n="37" ng-show="!uploadingFile && uploadProgress == 0"
                                             class="btn btn-default"
-                                            ngf-select="uploadFile($file)">Choose file
+                                            ngf-select="uploadFile($newFiles)"
+                                            ngf-max-size="maxFileSize"
+                                    >Choose file
                                     </button>
                                 </div>
 
@@ -282,7 +289,6 @@
 </div>
 
 <div class="modal-footer">
-
     <button i18n="45" class="btn btn-default" type="button" ng-click="$close()">Cancel</button>
     <button i18n="39" class="btn btn-primary" type="button" ng-click="ok()" ng-disabled="isDisabled()">Next &gt;
     </button>

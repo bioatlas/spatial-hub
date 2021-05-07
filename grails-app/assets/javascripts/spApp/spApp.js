@@ -98,6 +98,13 @@ spApp.config(['$httpProvider', function ($httpProvider) {
             },
 
             'responseError': function (rejection, a, c) {
+                // For auth redirect issue, retry once when status == -1 and withCredentials == true
+                if (rejection.status == -1 && rejection.config.withCredentials && rejection.config.retried === undefined) {
+                    var $http = angular.element(document.querySelector('sp-app')).injector().get('$http');
+                    rejection.config.retried = true;
+                    return $http(rejection.config);
+                }
+
                 var httpService = angular.element(document.querySelector('sp-app')).injector().get('HttpService');
                 if (httpService) httpService.pop(rejection, 'responseError');
 
@@ -114,6 +121,12 @@ spApp.config(['$httpProvider', function ($httpProvider) {
                     //Ignore invalid urls
                     //HTTP interceptor can decorate the promise rejection with a property handled to indicate whether it's handled the error.
                     rejection.handled = true;
+                    if (rejection.data) {
+                        if (rejection.data.message){
+                            rejection.data.error = reject.data.message;
+                        }
+
+                    }
                 }
                 return $q.reject(rejection);
             }
@@ -156,8 +169,11 @@ function fetchData() {
 
     var gLayerDistances = {};
     var gMessages = {};
+    var gLayers = []
+
     spApp.constant("gLayerDistances", gLayerDistances);
     spApp.constant("gMessages", gMessages);
+    spApp.constant("gLayers", gLayers);
 
     var distancesUrl = $SH.layersServiceUrl + "/layerDistances/layerdistancesJSON";
 
@@ -172,6 +188,12 @@ function fetchData() {
             }
         });
     }
+
+    promises.push($http.get($SH.layersServiceUrl + "/fields/search?q=", _httpDescription('getLayers')).then(function (data) {
+        $.map(data.data, function (v) {
+            gLayers.push(v);
+        })
+    }))
 
     promises.push($http.get($SH.baseUrl + "/portal/i18n?lang=" + $SH.i18n, _httpDescription('geti18n')).then(function (result) {
         for (k in result.data) {
@@ -387,9 +409,10 @@ var authWorkaround = function (url) {
 };
 
 // This is to fix auth issues with ajax calls to other ala applications
-if ($SH.biocollectUrl) {
-    authWorkaround($SH.biocollectUrl);
-}
+ if ($SH.biocollectLoginUrl) {
+     authWorkaround($SH.biocollectLoginUrl);
+ }
+
 
 // // Override Leaflet to fix map locking up when using different EPSGs
 L.oldLatLng = L.LatLng;
